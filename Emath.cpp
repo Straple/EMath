@@ -2409,13 +2409,15 @@ namespace mpg {
     //Superstructure over double. 
     //Compares a floating point number correctly
     class edouble {
-        double value = 0;
+        double value;
 
     public:
-        edouble() {}
+        edouble() {
+            value = 0;
+        }
         template<typename T>
         edouble(const T& value) {
-            this->value = static_cast<T>(value);
+            this->value = static_cast<double>(value);
         }
 
         bool operator == (const edouble& Rhs) const {
@@ -2440,9 +2442,8 @@ namespace mpg {
     };
 
     // рациональное число с правильным сравнением чисел с плавающей точкой
-    template<typename T>
     class rational {
-        T num = 0, den = 1;
+        double num = 0, den = 1;
         /* num
            ---
            den*/
@@ -2450,17 +2451,18 @@ namespace mpg {
     public:
 
         rational() {}
-        template<typename value_type>
-        rational(const value_type& value) {
-            num = static_cast<value_type>(value);
+        template<typename T>
+        rational(const T& value) {
+            num = static_cast<double>(value);
             den = 1;
         }
-        rational(const T& num, const T& den) {
-            this->num = num;
-            this->den = den;
+        template<typename T1, typename T2>
+        rational(const T1& num, const T2& den) {
+            this->num = static_cast<double>(num);
+            this->den = static_cast<double>(den);
         }
 
-        T operator *() const {
+        explicit operator double() const {
             return num / den;
         }
 
@@ -2478,13 +2480,13 @@ namespace mpg {
         }
 
         bool operator == (const rational& Rhs) const {
-            return std::abs(*(*this - Rhs)) <= eps;
+            return std::abs(static_cast<double>(*this - Rhs)) <= eps;
         }
         bool operator < (const rational& Rhs) const {
-            return *(*this - Rhs) < -eps;
+            return static_cast<double>(*this - Rhs) < -eps;
         }
         bool operator > (const rational& Rhs) const {
-            return *(*this - Rhs) > eps;
+            return static_cast<double>(*this - Rhs) > eps;
         }
 
         bool operator != (const rational& Rhs) const {
@@ -2497,27 +2499,28 @@ namespace mpg {
             return !(*this < Rhs);
         }
     };
-    template<typename T>
-    std::istream& operator >> (std::istream& input, rational<T>& value) {
-        T a;
+    std::istream& operator >> (std::istream& input, rational& value) {
+        double a;
         input >> a;
         value = a;
         return input;
     }
     template<typename T>
-    std::ostream& operator << (std::ostream& output, const rational<T>& value) {
-        return output << *value;
+    std::ostream& operator << (std::ostream& output, const rational& value) {
+        return output << static_cast<double>(value);
     }
 
     // x, y
     struct dot {
-        double x = 0, y = 0;
+        double x, y;
 
-        dot() {}
-        template<typename T>
-        dot(const T& x, const T& y) {
-            this->x = static_cast<T>(x);
-            this->y = static_cast<T>(y);
+        dot() {
+            x = y = 0;
+        }
+        template<typename T1, typename T2>
+        dot(const T1& x, const T2& y) {
+            this->x = static_cast<double>(x);
+            this->y = static_cast<double>(y);
         }
 
         // vector addition
@@ -2564,7 +2567,7 @@ namespace mpg {
 
         // vector len
         double getLen() const {
-            return sqrt(x * x + y * y);
+            return sqrt(getQuareLen());
         }
         // vector quare len
         double getQuareLen() const {
@@ -2589,7 +2592,7 @@ namespace mpg {
 
         // vector normalize * mult
         dot normalize(double mult = 1) const {
-            return *this / (getLen() * mult);
+            return *this * (mult / getLen());
         }
     };
     std::istream& operator >> (std::istream& input, dot& point) {
@@ -2628,19 +2631,21 @@ namespace mpg {
     // A, B, C
     // A*x + B*y + c = 0
     struct line {
-        double a = 0, b = 0, c = 0;
+        double a, b, c;
 
-        line() {}
+        line() {
+            a = b = c = 0;
+        }
         line(const dot& p0, const dot& p1) {
             a = p0.y - p1.y;
             b = p1.x - p0.x;
             c = -a * p0.x - b * p0.y;
         }
-        template<typename T>
-        line(const T& a, const T& b, const T& c) {
-            this->a = static_cast<T>(a);
-            this->b = static_cast<T>(b);
-            this->c = static_cast<T>(c);
+        template<typename T1, typename T2, typename T3>
+        line(const T1& a, const T2& b, const T3& c) {
+            this->a = static_cast<double>(a);
+            this->b = static_cast<double>(b);
+            this->c = static_cast<double>(c);
         }
 
         // returns the perpendicular line through point
@@ -2683,6 +2688,15 @@ namespace mpg {
             return intersect(getPerp(point));
         }
 
+        // отражает точки от прямой
+        std::vector<dot> reflection(const std::vector<dot>& Dots) const {
+            std::vector<dot> Result(Dots.size());
+            for (int i = 0; i < Result.size(); i++) {
+                Result[i] = Dots[i] + (perpIntersect(Dots[i]) - Dots[i]) * 2;
+            }
+            return Result;
+        }
+
 
         // returns the distance between lineand point
         double dist(const dot& point) const {
@@ -2722,12 +2736,15 @@ namespace mpg {
     // (x - x0)^2 + (y - y0)^2 = r^2
     struct circle {
         dot center;
-        double radius = 0;
+        double radius;
 
-        circle() {}
-        circle(const dot& new_center, const double new_radius) {
-            center = new_center;
-            radius = new_radius;
+        circle() {
+            radius = 0;
+        }
+        template<typename T>
+        circle(const dot& center, const T& radius) {
+            this->center = center;
+            this->radius = static_cast<double>(radius);
         }
         // constructor of a circle by three points lying on it
         circle(const dot& p0, const dot& p1, const dot& p2) {
