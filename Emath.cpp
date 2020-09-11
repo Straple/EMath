@@ -1046,7 +1046,7 @@ namespace dst {
         }
 
         // конструктор выделения
-        hashTable(int newSize) {
+        hashTable(size_t newSize) {
             A = new cell[newSize + 1];
             length = newSize;
             count = 0;
@@ -1092,17 +1092,19 @@ namespace dst {
                 findNext();
             }
 
-            iterator& operator ++(int) {
-                return inc();
+            iterator operator ++(int) {
+                auto temp = *this;
+                inc();
+                return temp;
             }
             iterator& operator ++() {
                 return inc();
             }
 
-            std::pair<key_t, val_t>& operator *() const {
+            std::pair<key_t, val_t>& operator *() {
                 return it->p;
             }
-            std::pair<key_t, val_t>* operator ->() const {
+            std::pair<key_t, val_t>* operator ->() {
                 return &**this;
             }
 
@@ -1161,6 +1163,9 @@ namespace dst {
         // Оптимизация Робин Гуд
         void insert(const key_t& key, const val_t& value) {
             insert(std::make_pair(key, value));
+        }
+        void insert(key_t&& key, const val_t&& value) {
+            insert(std::make_pair(std::move(key), std::move(value)));
         }
 
         // возвращает элемент с таким ключом или end если not found
@@ -1279,7 +1284,7 @@ namespace dst {
             copyArray(list);
         }
         template<typename array_t>
-        container(array_t A) {
+        container(const array_t& A) {
             copyArray(A);
         }
 
@@ -1381,7 +1386,10 @@ namespace dst {
         }
 
 
-        T& operator [](int index) const {
+        const T& operator [](int index) const {
+            return find(root, index)->value;
+        }
+        T& operator [](int index) {
             return find(root, index)->value;
         }
 
@@ -1392,10 +1400,16 @@ namespace dst {
             erase(0);
         }
 
-        T& back() const {
+        const T& back() const {
             return find(root, size() - 1)->value;
         }
-        T& front() const {
+        const T& front() const {
+            return find(root, 0)->value;
+        }
+        T& back() {
+            return find(root, size() - 1)->value;
+        }
+        T& front() {
             return find(root, 0)->value;
         }
 
@@ -1497,16 +1511,16 @@ namespace dst {
             return d.empty();
         }
 
-        T get() {
+        const T get() const {
             return d.front();
         }
-        void push(T value) {
+        void push(const T& value) {
             while (!d.empty() && compare(value, d.back())) {
                 d.pop_back();
             }
             d.push_back(value);
         }
-        void erase(T key) {
+        void erase(const T& key) {
             if (!d.empty() && d.front() == key) {
                 d.pop_front();
             }
@@ -1687,7 +1701,8 @@ namespace dst {
 
         // push key. O(1)
         void push(const T& key) {
-            root = merge(root, new node(key, 0, 0));
+            T addValue = key;
+            push(std::move(addValue));
         }
         // push key. O(1)
         void push(T&& key) {
@@ -2403,15 +2418,12 @@ namespace alg {
 
 // Сomputational Geometry: edouble, rational, dot, line, circle, polygon, ConvexHull
 namespace mpg {
+    double eps = 1e-9, pi = acos(-1), inf = 1e300 * 1e300;
 
-    double eps = 1e-9, pi = acos(-1), inf = 1e300L;
-
-    //Superstructure over double. 
-    //Compares a floating point number correctly
-    class edouble {
+    // надстройка над double с правильным сравнением чисел с плавающей точкой
+    struct edouble {
         double value;
 
-    public:
         edouble() {
             value = 0;
         }
@@ -2441,75 +2453,6 @@ namespace mpg {
         }
     };
 
-    // рациональное число с правильным сравнением чисел с плавающей точкой
-    class rational {
-        double num = 0, den = 1;
-        /* num
-           ---
-           den*/
-
-    public:
-
-        rational() {}
-        template<typename T>
-        rational(const T& value) {
-            num = static_cast<double>(value);
-            den = 1;
-        }
-        template<typename T1, typename T2>
-        rational(const T1& num, const T2& den) {
-            this->num = static_cast<double>(num);
-            this->den = static_cast<double>(den);
-        }
-
-        explicit operator double() const {
-            return num / den;
-        }
-
-        rational operator * (const rational& mult) const {
-            return rational(num * mult.num, den * mult.den);
-        }
-        rational operator / (const rational& div) const {
-            return rational(num * div.den, den * div.num);
-        }
-        rational operator + (const rational add) const {
-            return rational(num * add.den + add.num * den, den * add.den);
-        }
-        rational operator - (const rational subthr) const {
-            return rational(num * subthr.den - subthr.num * den, den * subthr.den);
-        }
-
-        bool operator == (const rational& Rhs) const {
-            return std::abs(static_cast<double>(*this - Rhs)) <= eps;
-        }
-        bool operator < (const rational& Rhs) const {
-            return static_cast<double>(*this - Rhs) < -eps;
-        }
-        bool operator > (const rational& Rhs) const {
-            return static_cast<double>(*this - Rhs) > eps;
-        }
-
-        bool operator != (const rational& Rhs) const {
-            return !(*this == Rhs);
-        }
-        bool operator <= (const rational& Rhs) const {
-            return !(*this > Rhs);
-        }
-        bool operator >= (const rational& Rhs) const {
-            return !(*this < Rhs);
-        }
-    };
-    std::istream& operator >> (std::istream& input, rational& value) {
-        double a;
-        input >> a;
-        value = a;
-        return input;
-    }
-    template<typename T>
-    std::ostream& operator << (std::ostream& output, const rational& value) {
-        return output << static_cast<double>(value);
-    }
-
     // x, y
     struct dot {
         double x, y;
@@ -2523,7 +2466,6 @@ namespace mpg {
             this->y = static_cast<double>(y);
         }
 
-        // vector addition
         dot operator + (const dot& p) const {
             return dot(x + p.x, y + p.y);
         }
@@ -2531,45 +2473,39 @@ namespace mpg {
             return *this = *this + p;
         }
 
-        // vector subtraction
-        dot operator - (const dot& p) const {
+        dot operator -(const dot& p) const {
             return dot(x - p.x, y - p.y);
         }
         dot& operator -= (const dot& p) {
             return *this = *this - p;
         }
 
-        // multiplying a vector by a number k
         dot operator * (double k) const {
-            return dot{ x * k, y * k };
+            return dot(x * k, y * k);
         }
         dot& operator *= (double k) {
             return *this = *this * k;
         }
 
-        // dividing a vector by a number k
         dot operator / (double k) const {
-            return dot{ x / k, y / k };
+            return dot(x / k, y / k);
         }
         dot& operator /= (double k) {
             return *this = *this / k;
         }
 
-        // product of vectors
+        // векторное произведение
         double operator % (const dot& p) const {
             return x * p.y - y * p.x;
         }
-        // scalar product
+        // скалярное произведение
         double operator * (const dot& p) const {
             return x * p.x + y * p.y;
         }
 
-
-        // vector len
         double getLen() const {
             return sqrt(getQuareLen());
         }
-        // vector quare len
         double getQuareLen() const {
             return x * x + y * y;
         }
@@ -2581,95 +2517,82 @@ namespace mpg {
             return !(*this == Rhs);
         }
 
-        // самая левая, потом нижняя
+        // самая левая, потом самая нижняя
         bool operator < (const dot& Rhs) const {
             return edouble(x) == Rhs.x ? edouble(y) < Rhs.y : edouble(x) < Rhs.x;
         }
-        // самая правая, потом верхняя
+        // самая правая, потом самая верхняя
         bool operator > (const dot& Rhs) const {
             return edouble(x) == Rhs.x ? edouble(y) > Rhs.y : edouble(x) > Rhs.x;
         }
 
-        // vector normalize * mult
         dot normalize(double mult = 1) const {
             return *this * (mult / getLen());
         }
     };
-    std::istream& operator >> (std::istream& input, dot& point) {
-        return input >> point.x >> point.y;
+    std::istream& operator >> (std::istream& input, dot& Dot) {
+        return input >> Dot.x >> Dot.y;
     }
-    std::ostream& operator << (std::ostream& output, const dot& point) {
-        return output << point.x << " " << point.y;
+    std::ostream& operator << (std::ostream& output, const dot& Dot) {
+        return output << Dot.x << " " << Dot.y;
     }
 
-
-    // returns the angle between vectors
+    // возвращает угол между векторами
     double getAngle(const dot& a, const dot& b) {
         return atan2(a % b, a * b);
     }
-    // returns a non-negative angle between vectors
+    // возвращает неотрицательный угол между векторами
     double getGoodAngle(const dot& a, const dot& b) {
-        double res = atan2(a % b, a * b);
+        double res = getAngle(a, b);
         if (res < 0) {
             res += 2 * pi;
         }
         return res;
     }
-    // returns a non - negative angle less than 180
+    // возвращает неотрицательный угол меньше 180 между векторами
     double getVeryGoodAngle(const dot& a, const dot& b) {
-        double res = atan2(a % b, a * b);
-        if (res < 0) {
-            res += 2 * pi;
-        }
+        double res = getGoodAngle(a, b);
         if (res > pi) {
             res = 2 * pi - res;
         }
         return res;
     }
 
-
-    // A, B, C
-    // A*x + B*y + c = 0
+    // a, b, c
     struct line {
         double a, b, c;
-
         line() {
             a = b = c = 0;
         }
-        line(const dot& p0, const dot& p1) {
-            a = p0.y - p1.y;
-            b = p1.x - p0.x;
-            c = -a * p0.x - b * p0.y;
+        line(const dot& begin, const dot& end) {
+            a = begin.y - end.y;
+            b = end.x - begin.x;
+            c = -a * begin.x - b * begin.y;
         }
         template<typename T1, typename T2, typename T3>
-        line(const T1& a, const T2& b, const T3& c) {
-            this->a = static_cast<double>(a);
-            this->b = static_cast<double>(b);
-            this->c = static_cast<double>(c);
+        line(const T1& A, const T2& B, const T3& C) {
+            a = static_cast<double>(A);
+            b = static_cast<double>(B);
+            c = static_cast<double>(C);
         }
 
-        // returns the perpendicular line through point
+        // возвращает перпендикуляр из точки
         line getPerp(const dot& point) const {
             double A = -b, B = a;
             double C = -A * point.x - B * point.y;
             return line(A, B, C);
         }
-
-        // returns a parallel line at a distance
-        // at negative distance will return a straight line from the other side
+        // возвращает параллельную прямую на расстоянии dist
+        // если оно будет отрицательно, то вернет с другой стороны
         line getParallel(double dist) const {
-            double A = a, B = b;
-            double C = c + dist * sqrt(a * a + b * b);
-            return line(A, B, C);
+            return line(a, b, c + dist * sqrt(a * a + b * b));
         }
-
-        // returns the normalized vector line multiplied by mult
+        // возвращает нормализованный вектор прямой умноженный на mult
         dot getVector(double mult = 1) const {
             return dot(-b, a).normalize(mult);
         }
 
-
-        // return the intersection point
+        // возвращает точку пересечения двух прямых
         dot intersect(const line& Rhs) const {
             double x, y;
             if (edouble(Rhs.b) != 0) {
@@ -2683,7 +2606,7 @@ namespace mpg {
             return dot(x, y);
         }
 
-        // returns the intersection point of the perpendicular from the point
+        // возвращает точку пересечения перпендикуляра
         dot perpIntersect(const dot& point) const {
             return intersect(getPerp(point));
         }
@@ -2697,29 +2620,22 @@ namespace mpg {
             return Result;
         }
 
-
-        // returns the distance between lineand point
+        // возвращает длину перпендикуляра
         double dist(const dot& point) const {
             return abs(a * point.x + b * point.y + c) / std::sqrt(a * a + b * b);
         }
-
-        // returns the distance between two PARALLEL straight lines
-        double dist(const line& parallel_line) const {
-            return abs(c - parallel_line.c) / sqrt(a * a + b * b);
+        // возвращает расстояние между ПАРАЛЛЕЛЬНЫМИ прямыми
+        double dist(const line& parallel) const {
+            return abs(c - parallel.c) / sqrt(a * a + b * b);
         }
 
-
-        // return true if lines is parallel
         bool isParallel(const line& Rhs) const {
             return edouble(a * Rhs.b - b * Rhs.a) == 0;
         }
-
-        // return true if lines is perpendicular
         bool isPerp(const line& Rhs) const {
             return edouble(a * Rhs.a + b * Rhs.b) == 0;
         }
-
-        // return true if the point is on the line
+        // Ax + By + C == 0
         bool ison(const dot& point) const {
             return edouble(a * point.x + b * point.y + c) == 0;
         }
@@ -2731,9 +2647,7 @@ namespace mpg {
         return output << Line.a << " " << Line.b << " " << Line.c;
     }
 
-
     // center, radius
-    // (x - x0)^2 + (y - y0)^2 = r^2
     struct circle {
         dot center;
         double radius;
@@ -2746,7 +2660,7 @@ namespace mpg {
             this->center = center;
             this->radius = static_cast<double>(radius);
         }
-        // constructor of a circle by three points lying on it
+        // по 3 точкам
         circle(const dot& p0, const dot& p1, const dot& p2) {
             dot point1 = p1 + (p0 - p1) * .5;
             dot point2 = p2 + (p0 - p2) * .5;
@@ -2769,7 +2683,6 @@ namespace mpg {
         double getLength() const {
             return 2 * pi * radius;
         }
-
         // pi*R^2
         double getArea() const {
             return pi * radius * radius;
@@ -2784,12 +2697,12 @@ namespace mpg {
             }
             else {
                 dot vector(Rhs.center - center);
-                result = circle(dot(0, 0), radius).intersect(
+                result = circle(dot(), radius).intersect(
                     line(-2 * vector.x,
                         -2 * vector.y,
                         vector.x * vector.x + vector.y * vector.y + radius * radius - Rhs.radius * Rhs.radius));
 
-                for (size_t i = 0; i < result.size(); i++) {
+                for (int i = 0; i < result.size(); i++) {
                     result[i] += center;
                 }
 
@@ -2831,21 +2744,19 @@ namespace mpg {
         return output << Circle.center << " " << Circle.radius;
     }
 
-
     // Многоугольник. points
     struct polygon {
         std::vector<dot> Dots;
 
         polygon() {}
-        polygon(const std::vector<dot>& newDots) {
-            Dots = newDots;
+        polygon(const std::vector<dot>& Dots) {
+            this->Dots = Dots;
         }
 
         // Возвращает площадь многоугольника
         double getArea() const {
             double result = 0;
-            for (int i = 0; i < Dots.size(); i++)
-            {
+            for (int i = 0; i < Dots.size(); i++) {
                 dot p1 = i ? Dots[i - 1] : Dots.back(),
                     p2 = Dots[i];
                 result += (p1.x - p2.x) * (p1.y + p2.y);
@@ -2873,13 +2784,11 @@ namespace mpg {
         }
     };
 
-
     // сравнивает две точки для построения выпуклой оболочки
     bool compareConvexHull(const dot& Lhs, const dot& Rhs) {
         edouble vectorProduct = Lhs % Rhs;
         return vectorProduct == 0 ? edouble(Lhs.getQuareLen()) < Rhs.getQuareLen() : vectorProduct < 0;
     }
-
     // для проверки принадлежности точки к выпулой оболочки
     double sq(const dot& a, const dot& b, const dot& c) {
         return a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y);
@@ -3072,13 +2981,13 @@ namespace emt {
     // signed long integer
     class elong {
         // простое длинное число
-        struct simpleLong {
+        struct basicLong {
             dst::edeque<long long> digits;
 
-            simpleLong(const dst::edeque<long long>& newDigits) {
+            basicLong(const dst::edeque<long long>& newDigits) {
                 digits = newDigits;
             }
-            simpleLong(const std::string& str) {
+            basicLong(const std::string& str) {
                 int i;
                 for (i = str.size(); i >= long_length; i -= long_length) {
                     digits.push_back(atoll(str.substr(i - long_length, long_length).c_str()));
@@ -3087,9 +2996,9 @@ namespace emt {
                     digits.push_back(atoll(str.substr(0, i).c_str()));
                 }
             }
-            simpleLong() {}
+            basicLong() {}
 
-            simpleLong& remove_leading_zeros() {
+            basicLong& remove_leading_zeros() {
                 while (!digits.empty() && digits.back() == 0) {
                     digits.pop_back();
                 }
@@ -3108,7 +3017,7 @@ namespace emt {
             }
 
             // compare two numbers
-            OP compare(const simpleLong& Rhs) const {
+            OP compare(const basicLong& Rhs) const {
                 if (digits.size() != Rhs.digits.size()) {
                     return comp(digits.size(), Rhs.digits.size());
                 }
@@ -3121,19 +3030,19 @@ namespace emt {
                 }
             }
 
-            bool operator < (const simpleLong& Rhs) const {
+            bool operator < (const basicLong& Rhs) const {
                 return compare(Rhs) == OP::less;
             }
-            bool operator == (const simpleLong& Rhs) const {
+            bool operator == (const basicLong& Rhs) const {
                 return compare(Rhs) == OP::equally;
             }
-            bool operator > (const simpleLong& Rhs) const {
+            bool operator > (const basicLong& Rhs) const {
                 return compare(Rhs) == OP::more;
             }
 
             // return a + b
-            simpleLong operator + (const simpleLong& added) const {
-                simpleLong result = *this;
+            basicLong operator + (const basicLong& added) const {
+                basicLong result = *this;
                 bool k = 0;
                 long long i = 0;
                 int len = std::max(result.digits.size(), added.digits.size());
@@ -3149,8 +3058,8 @@ namespace emt {
             }
 
             // return minuend - subtrahend
-            simpleLong operator - (const simpleLong& subtrahend) const {
-                simpleLong result = *this;
+            basicLong operator - (const basicLong& subtrahend) const {
+                basicLong result = *this;
 
                 bool k = 0;
                 for (int i = 0; i < subtrahend.digits.size() || k != 0; i++) {
@@ -3162,8 +3071,8 @@ namespace emt {
             }
 
             // расширяет длину числа, уменьшая его модуль
-            simpleLong expansion() const {
-                simpleLong result;
+            basicLong expansion() const {
+                basicLong result;
                 result.digits.resize(digits.size() << 1);
                 for (int i = 0; i < digits.size(); i++) {
                     result.digits[i << 1] = digits[i] % long_base_expansion;
@@ -3173,8 +3082,8 @@ namespace emt {
             }
 
             // сужает длину числа, увеличивая его модуль
-            simpleLong reduction() const {
-                simpleLong result;
+            basicLong reduction() const {
+                basicLong result;
                 result.digits.resize(digits.size() >> 1);
                 for (int i = 0; i < result.digits.size(); i++) {
                     result.digits[i] = digits[i << 1] + digits[(i << 1) + 1] * long_base_expansion;
@@ -3183,8 +3092,8 @@ namespace emt {
             }
 
             // Простое умножение двух чисел за O(n^2)
-            simpleLong naiveMul(const simpleLong& a, const simpleLong& b) const {
-                simpleLong result, mult1 = a.expansion(), mult2 = b.expansion();
+            basicLong naiveMul(const basicLong& a, const basicLong& b) const {
+                basicLong result, mult1 = a.expansion(), mult2 = b.expansion();
                 result.digits.resize(mult1.digits.size() + mult2.digits.size() + 1);
 
                 unsigned long long c, k;
@@ -3203,19 +3112,19 @@ namespace emt {
             }
 
             // O(n ^ log_2 3)
-            simpleLong KaratsubaMul(const simpleLong& x, const simpleLong& y, int n) const {
+            basicLong KaratsubaMul(const basicLong& x, const basicLong& y, int n) const {
                 if (n <= 128) {
                     return naiveMul(x, y);
                 }
                 else {
                     int half = n >> 1;
                     // firstHalf - первая половина числа
-                    simpleLong Xl = x.firstHalf(), Xr = x.secondHalf(), Yl = y.firstHalf(), Yr = y.secondHalf();
-                    simpleLong sumX = Xl + Xr, sumY = Yl + Yr;
+                    basicLong Xl = x.firstHalf(), Xr = x.secondHalf(), Yl = y.firstHalf(), Yr = y.secondHalf();
+                    basicLong sumX = Xl + Xr, sumY = Yl + Yr;
 
-                    simpleLong P1 = KaratsubaMul(Xl, Yl, half);
-                    simpleLong P2 = KaratsubaMul(Xr, Yr, half);
-                    simpleLong P3;
+                    basicLong P1 = KaratsubaMul(Xl, Yl, half);
+                    basicLong P2 = KaratsubaMul(Xr, Yr, half);
+                    basicLong P3;
                     if (sumX.digits.size() != half || sumY.digits.size() != half) {
                         sumX.digits.resize(n);
                         sumY.digits.resize(n);
@@ -3230,13 +3139,13 @@ namespace emt {
             }
 
             // return a * b
-            simpleLong operator * (const simpleLong& mult) const {
+            basicLong operator * (const basicLong& mult) const {
                 int k = std::max(this->digits.size(), mult.digits.size());
                 if (k <= 128) {
                     return naiveMul(*this, mult);
                 }
                 else {
-                    simpleLong mult1 = *this, mult2 = mult;
+                    basicLong mult1 = *this, mult2 = mult;
                     int len = roundTwo(k);
                     mult1.digits.resize(len);
                     mult2.digits.resize(len);
@@ -3245,10 +3154,10 @@ namespace emt {
             }
 
             // return dividend / divider
-            simpleLong operator / (const simpleLong& divider) const {
+            basicLong operator / (const basicLong& divider) const {
                 // если divider == 2
                 if (divider.digits.size() == 1 && divider.digits.front() == 2) {
-                    simpleLong res = *this;
+                    basicLong res = *this;
                     res.digits[0] >>= 1;
                     for (int i = 1; i < res.digits.size(); i++) {
                         if (res.digits[i] & 1) { // res.digits[i] % 2 
@@ -3259,7 +3168,7 @@ namespace emt {
                     return res.remove_leading_zeros();
                 }
                 else {
-                    simpleLong result, value, temp, t;
+                    basicLong result, value, temp, t;
 
                     int i = digits.size() - 1;
                     while (i >= 0 && value < divider) {
@@ -3298,14 +3207,14 @@ namespace emt {
             }
 
             // return dividend % divider
-            simpleLong operator % (const simpleLong& divider) const {
+            basicLong operator % (const basicLong& divider) const {
                 if (divider.digits.size() == 1 && divider.digits.front() == 2) {
-                    simpleLong res;
+                    basicLong res;
                     res.digits.push_back(digits.front() & 1);
                     return res;
                 }
                 else {
-                    simpleLong result, temp, t;
+                    basicLong result, temp, t;
 
                     int i = digits.size() - 1;
                     while (i >= 0 && result < divider) {
@@ -3343,26 +3252,26 @@ namespace emt {
             }
 
             // сдвигает число на long_base^k влево
-            simpleLong operator << (int k) const {
-                simpleLong res = *this;
+            basicLong operator << (int k) const {
+                basicLong res = *this;
                 while (k--) {
                     res.digits.push_front(0);
                 }
                 return res;
             }
 
-            simpleLong firstHalf() const {
+            basicLong firstHalf() const {
                 int half = digits.size() >> 1;
-                simpleLong res;
+                basicLong res;
                 res.digits.resize(half);
                 for (int i = 0; i < half; i++) {
                     res.digits[i] = digits[i];
                 }
                 return res;
             }
-            simpleLong secondHalf() const {
+            basicLong secondHalf() const {
                 int half = digits.size() >> 1;
-                simpleLong res;
+                basicLong res;
                 res.digits.resize(half);
                 for (int i = 0; i < half; i++) {
                     res.digits[i] = digits[i + half];
@@ -3370,8 +3279,8 @@ namespace emt {
                 return res;
             }
 
-            simpleLong sqrt() const {
-                simpleLong left, right, two, one;
+            basicLong sqrt() const {
+                basicLong left, right, two, one;
                 right.digits.resize((digits.size() >> 1) + digits.size() & 1);
                 for (int i = 0; i < right.digits.size(); i++) {
                     right.digits[i] = long_base - 1;
@@ -3379,7 +3288,7 @@ namespace emt {
                 two.digits.push_back(2);
                 one.digits.push_back(1);
                 while (left + one < right) {
-                    simpleLong mid = (left + right) / two;
+                    basicLong mid = (left + right) / two;
                     if (mid * mid > * this) {
                         right = mid;
                     }
@@ -3391,7 +3300,7 @@ namespace emt {
             }
         };
 
-        simpleLong value;
+        basicLong value;
         bool isNegative = false;
 
         // update
@@ -3402,7 +3311,7 @@ namespace emt {
             return *this;
         }
 
-        elong(const simpleLong& value, bool isNegative) {
+        elong(const basicLong& value, bool isNegative) {
             this->value = value;
             this->isNegative = isNegative;
         }
@@ -3479,25 +3388,19 @@ namespace emt {
 
         elong(const std::string& String) {
             isNegative = String[0] == '-';
-            value = isNegative ? simpleLong(String.substr(1)) : simpleLong(String);
+            value = isNegative ? basicLong(String.substr(1)) : basicLong(String);
         }
         elong(const char* String) {
             *this = elong(std::string(String));
         }
 
-        template<typename T>
-        elong(T number) {
+        elong(long long number) {
             isNegative = number < 0;
-
-            if (number == 0) {
-                value.digits.push_back(0);
-            }
-            else {
-                number = isNegative ? number * -1 : number;
-                while (number > 0) {
-                    value.digits.push_back(static_cast<long long>(number % long_base));
-                    number /= long_base;
-                }
+            number *= isNegative ? -1 : 1;
+            value.digits.push_back(number % long_base);
+            number /= long_base;
+            if (number > 0) {
+                value.digits.push_back(number);
             }
         }
         // ]
@@ -3608,8 +3511,6 @@ namespace emt {
             return *this = *this % divider;
         }
         // ]
-
-        // bit operators
 
         // value * 2^k
         elong operator << (const size_t& k) const {
@@ -3851,12 +3752,8 @@ using namespace std;
 
 
 int main() {
-
-    emt::elong k = 10;
     
-    while (--k) {
-        cout << k << "\n";
-    }
-    
+    double A = (1e300L * 1e300L);
+    cout << A;
     return 0;
 }
