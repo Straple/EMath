@@ -2473,7 +2473,7 @@ namespace mpg {
             return *this = *this + p;
         }
 
-        dot operator -(const dot& p) const {
+        dot operator - (const dot& p) const {
             return dot(x - p.x, y - p.y);
         }
         dot& operator -= (const dot& p) {
@@ -3753,7 +3753,5 @@ using namespace std;
 
 int main() {
     
-    double A = (1e300L * 1e300L);
-    cout << A;
     return 0;
 }
