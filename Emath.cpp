@@ -2418,52 +2418,54 @@ namespace alg {
 
 // Сomputational Geometry: edouble, rational, dot, line, circle, polygon, ConvexHull
 namespace mpg {
-    double eps = 1e-9, pi = acos(-1), inf = 1e300 * 1e300;
+    typedef double float_type;
 
-    // надстройка над double с правильным сравнением чисел с плавающей точкой
-    struct edouble {
-        double value;
+    float_type eps = 1e-9, pi = acos(-1), inf = 1e300 * 1e300;
 
-        edouble() {
+    // надстройка над float_type с правильным сравнением чисел с плавающей точкой
+    struct efloat {
+        float_type value;
+
+        efloat() {
             value = 0;
         }
         template<typename T>
-        edouble(const T& value) {
-            this->value = static_cast<double>(value);
+        efloat(const T& value) {
+            this->value = static_cast<float_type>(value);
         }
 
-        bool operator == (const edouble& Rhs) const {
+        bool operator == (const efloat& Rhs) const {
             return std::abs(value - Rhs.value) <= eps;
         }
-        bool operator < (const edouble& Rhs) const {
+        bool operator < (const efloat& Rhs) const {
             return value < Rhs.value - eps;
         }
-        bool operator > (const edouble& Rhs) const {
+        bool operator > (const efloat& Rhs) const {
             return value > Rhs.value + eps;
         }
 
-        bool operator != (const edouble& Rhs) const {
+        bool operator != (const efloat& Rhs) const {
             return !(*this == Rhs);
         }
-        bool operator <= (const edouble& Rhs) const {
+        bool operator <= (const efloat& Rhs) const {
             return !(*this > Rhs);
         }
-        bool operator >= (const edouble& Rhs) const {
+        bool operator >= (const efloat& Rhs) const {
             return !(*this < Rhs);
         }
     };
 
     // x, y
     struct dot {
-        double x, y;
+        float_type x, y;
 
         dot() {
             x = y = 0;
         }
         template<typename T1, typename T2>
         dot(const T1& x, const T2& y) {
-            this->x = static_cast<double>(x);
-            this->y = static_cast<double>(y);
+            this->x = static_cast<float_type>(x);
+            this->y = static_cast<float_type>(y);
         }
 
         dot operator + (const dot& p) const {
@@ -2480,38 +2482,38 @@ namespace mpg {
             return *this = *this - p;
         }
 
-        dot operator * (double k) const {
+        dot operator * (float_type k) const {
             return dot(x * k, y * k);
         }
-        dot& operator *= (double k) {
+        dot& operator *= (float_type k) {
             return *this = *this * k;
         }
 
-        dot operator / (double k) const {
+        dot operator / (float_type k) const {
             return dot(x / k, y / k);
         }
-        dot& operator /= (double k) {
+        dot& operator /= (float_type k) {
             return *this = *this / k;
         }
 
         // векторное произведение
-        double operator % (const dot& p) const {
+        float_type operator % (const dot& p) const {
             return x * p.y - y * p.x;
         }
         // скалярное произведение
-        double operator * (const dot& p) const {
+        float_type operator * (const dot& p) const {
             return x * p.x + y * p.y;
         }
 
-        double getLen() const {
+        float_type getLen() const {
             return sqrt(getQuareLen());
         }
-        double getQuareLen() const {
+        float_type getQuareLen() const {
             return x * x + y * y;
         }
 
         bool operator == (const dot& Rhs) const {
-            return edouble(x) == Rhs.x && edouble(y) == Rhs.y;
+            return efloat(x) == Rhs.x && efloat(y) == Rhs.y;
         }
         bool operator != (const dot& Rhs) const {
             return !(*this == Rhs);
@@ -2519,14 +2521,14 @@ namespace mpg {
 
         // самая левая, потом самая нижняя
         bool operator < (const dot& Rhs) const {
-            return edouble(x) == Rhs.x ? edouble(y) < Rhs.y : edouble(x) < Rhs.x;
+            return efloat(x) == Rhs.x ? efloat(y) < Rhs.y : efloat(x) < Rhs.x;
         }
         // самая правая, потом самая верхняя
         bool operator > (const dot& Rhs) const {
-            return edouble(x) == Rhs.x ? edouble(y) > Rhs.y : edouble(x) > Rhs.x;
+            return efloat(x) == Rhs.x ? efloat(y) > Rhs.y : efloat(x) > Rhs.x;
         }
 
-        dot normalize(double mult = 1) const {
+        dot normalize(float_type mult = 1) const {
             return *this * (mult / getLen());
         }
     };
@@ -2538,20 +2540,20 @@ namespace mpg {
     }
 
     // возвращает угол между векторами
-    double getAngle(const dot& a, const dot& b) {
+    float_type getAngle(const dot& a, const dot& b) {
         return atan2(a % b, a * b);
     }
     // возвращает неотрицательный угол между векторами
-    double getGoodAngle(const dot& a, const dot& b) {
-        double res = getAngle(a, b);
+    float_type getGoodAngle(const dot& a, const dot& b) {
+        float_type res = getAngle(a, b);
         if (res < 0) {
             res += 2 * pi;
         }
         return res;
     }
     // возвращает неотрицательный угол меньше 180 между векторами
-    double getVeryGoodAngle(const dot& a, const dot& b) {
-        double res = getGoodAngle(a, b);
+    float_type getVeryGoodAngle(const dot& a, const dot& b) {
+        float_type res = getGoodAngle(a, b);
         if (res > pi) {
             res = 2 * pi - res;
         }
@@ -2560,7 +2562,7 @@ namespace mpg {
 
     // a, b, c
     struct line {
-        double a, b, c;
+        float_type a, b, c;
         line() {
             a = b = c = 0;
         }
@@ -2571,31 +2573,31 @@ namespace mpg {
         }
         template<typename T1, typename T2, typename T3>
         line(const T1& A, const T2& B, const T3& C) {
-            a = static_cast<double>(A);
-            b = static_cast<double>(B);
-            c = static_cast<double>(C);
+            a = static_cast<float_type>(A);
+            b = static_cast<float_type>(B);
+            c = static_cast<float_type>(C);
         }
 
         // возвращает перпендикуляр из точки
         line getPerp(const dot& point) const {
-            double A = -b, B = a;
-            double C = -A * point.x - B * point.y;
+            float_type A = -b, B = a;
+            float_type C = -A * point.x - B * point.y;
             return line(A, B, C);
         }
         // возвращает параллельную прямую на расстоянии dist
         // если оно будет отрицательно, то вернет с другой стороны
-        line getParallel(double dist) const {
+        line getParallel(float_type dist) const {
             return line(a, b, c + dist * sqrt(a * a + b * b));
         }
         // возвращает нормализованный вектор прямой умноженный на mult
-        dot getVector(double mult = 1) const {
+        dot getVector(float_type mult = 1) const {
             return dot(-b, a).normalize(mult);
         }
 
         // возвращает точку пересечения двух прямых
         dot intersect(const line& Rhs) const {
-            double x, y;
-            if (edouble(Rhs.b) != 0) {
+            float_type x, y;
+            if (efloat(Rhs.b) != 0) {
                 x = ((b * Rhs.c / Rhs.b - c) / (a - b * Rhs.a / Rhs.b));
                 y = (-x * Rhs.a - Rhs.c) / Rhs.b;
             }
@@ -2621,23 +2623,23 @@ namespace mpg {
         }
 
         // возвращает длину перпендикуляра
-        double dist(const dot& point) const {
+        float_type dist(const dot& point) const {
             return abs(a * point.x + b * point.y + c) / std::sqrt(a * a + b * b);
         }
         // возвращает расстояние между ПАРАЛЛЕЛЬНЫМИ прямыми
-        double dist(const line& parallel) const {
+        float_type dist(const line& parallel) const {
             return abs(c - parallel.c) / sqrt(a * a + b * b);
         }
 
         bool isParallel(const line& Rhs) const {
-            return edouble(a * Rhs.b - b * Rhs.a) == 0;
+            return efloat(a * Rhs.b - b * Rhs.a) == 0;
         }
         bool isPerp(const line& Rhs) const {
-            return edouble(a * Rhs.a + b * Rhs.b) == 0;
+            return efloat(a * Rhs.a + b * Rhs.b) == 0;
         }
         // Ax + By + C == 0
         bool ison(const dot& point) const {
-            return edouble(a * point.x + b * point.y + c) == 0;
+            return efloat(a * point.x + b * point.y + c) == 0;
         }
     };
     std::istream& operator >> (std::istream& input, line& Line) {
@@ -2650,7 +2652,7 @@ namespace mpg {
     // center, radius
     struct circle {
         dot center;
-        double radius;
+        float_type radius;
 
         circle() {
             radius = 0;
@@ -2658,7 +2660,7 @@ namespace mpg {
         template<typename T>
         circle(const dot& center, const T& radius) {
             this->center = center;
-            this->radius = static_cast<double>(radius);
+            this->radius = static_cast<float_type>(radius);
         }
         // по 3 точкам
         circle(const dot& p0, const dot& p1, const dot& p2) {
@@ -2675,16 +2677,16 @@ namespace mpg {
 
         // returns a point on a circle
         // counterclockwise angle
-        dot point(double angle) const {
+        dot point(float_type angle) const {
             return center + dot(cos(angle), sin(angle)) * radius;
         }
 
         // 2*pi*R
-        double getLength() const {
+        float_type getLength() const {
             return 2 * pi * radius;
         }
         // pi*R^2
-        double getArea() const {
+        float_type getArea() const {
             return pi * radius * radius;
         }
 
@@ -2693,7 +2695,7 @@ namespace mpg {
         bool intersect(const circle& Rhs, std::vector<dot>& result) const {
             if (Rhs.center == center) {
                 result.clear();
-                return edouble(radius) == Rhs.radius;
+                return efloat(radius) == Rhs.radius;
             }
             else {
                 dot vector(Rhs.center - center);
@@ -2715,15 +2717,15 @@ namespace mpg {
             dot perp = Rhs.perpIntersect(center),
                 delta = center - perp;
 
-            double quareRadius = radius * radius;
-            double quareDist = delta.getQuareLen();
+            float_type quareRadius = radius * radius;
+            float_type quareDist = delta.getQuareLen();
 
-            if (edouble(quareRadius) > quareDist) { // two points
-                double len = sqrt(quareRadius - quareDist);
+            if (efloat(quareRadius) > quareDist) { // two points
+                float_type len = sqrt(quareRadius - quareDist);
                 dot vector(Rhs.getVector(len));
                 return { dot(perp + vector), dot(perp - vector) };
             }
-            else if (edouble(quareRadius) == quareDist) { // one point
+            else if (efloat(quareRadius) == quareDist) { // one point
                 return { perp };
             }
             else { // none point
@@ -2733,7 +2735,7 @@ namespace mpg {
 
         // returns true if point lies on a circle
         bool ison(const dot& point) const {
-            return edouble((center.x - point.x) * (center.x - point.x) +
+            return efloat((center.x - point.x) * (center.x - point.x) +
                 (center.y - point.y) * (center.y - point.y)) == radius * radius;
         }
     };
@@ -2754,8 +2756,8 @@ namespace mpg {
         }
 
         // Возвращает площадь многоугольника
-        double getArea() const {
-            double result = 0;
+        float_type getArea() const {
+            float_type result = 0;
             for (int i = 0; i < Dots.size(); i++) {
                 dot p1 = i ? Dots[i - 1] : Dots.back(),
                     p2 = Dots[i];
@@ -2765,8 +2767,8 @@ namespace mpg {
         }
 
         // Возвращает периметр многоугольника
-        double getPerim() const {
-            double result = (Dots[0] - Dots.back()).getLen();
+        float_type getPerim() const {
+            float_type result = (Dots[0] - Dots.back()).getLen();
             for (int i = 1; i < Dots.size(); i++) {
                 result += (Dots[i] - Dots[i - 1]).getLen();
             }
@@ -2777,7 +2779,7 @@ namespace mpg {
         // WARNING !!No checked!!
         bool isConvexHull() const {
             int i = 2;
-            while (i < Dots.size() && edouble((Dots[i] - Dots[i - 2]) % (Dots[i - 1] - Dots[i - 2])) <= 0) {
+            while (i < Dots.size() && efloat((Dots[i] - Dots[i - 2]) % (Dots[i - 1] - Dots[i - 2])) <= 0) {
                 i++;
             }
             return i == Dots.size();
@@ -2786,11 +2788,11 @@ namespace mpg {
 
     // сравнивает две точки для построения выпуклой оболочки
     bool compareConvexHull(const dot& Lhs, const dot& Rhs) {
-        edouble vectorProduct = Lhs % Rhs;
-        return vectorProduct == 0 ? edouble(Lhs.getQuareLen()) < Rhs.getQuareLen() : vectorProduct < 0;
+        efloat vectorProduct = Lhs % Rhs;
+        return vectorProduct == 0 ? efloat(Lhs.getQuareLen()) < Rhs.getQuareLen() : vectorProduct < 0;
     }
     // для проверки принадлежности точки к выпулой оболочки
-    double sq(const dot& a, const dot& b, const dot& c) {
+    float_type sq(const dot& a, const dot& b, const dot& c) {
         return a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y);
     }
 
@@ -2807,25 +2809,64 @@ namespace mpg {
 
         // проверка принадлежности точки выпуклому многоугольнику. Ответ за O(log n). Построение за O(n)
         bool ison(const dot& point) {
-            if (Dots.empty()) {
-                init();
-            }
+            struct isOnData {
+                struct angle {
+                    float_type a, b;
 
-            if (edouble(point.x) >= zero.x) {
-                if (edouble(point.x) == zero.x && edouble(point.y) == zero.y) {
+                    angle() {}
+                    angle(const dot& p) {
+                        a = p.y;
+                        b = p.x;
+                        if (efloat(a) == 0) {
+                            b = efloat(b) < 0 ? -1 : 1;
+                        }
+                    }
+
+                    bool operator < (const angle& Rhs) const {
+                        if (efloat(b) == 0 && efloat(Rhs.b) == 0) {
+                            return efloat(a) < Rhs.a;
+                        }
+                        return efloat(a * Rhs.b) < efloat(b * Rhs.a);
+                    }
+                };
+
+                std::vector<dot> Dots;
+                dot zero; // самая левая нижняя точка
+                std::vector<angle> Angles; // углы
+
+                isOnData(const polygon& poly) {
+                    Dots = poly.Dots;
+                    int zeroId = 0;
+                    for (int i = 0; i < Dots.size(); i++) {
+                        zeroId = Dots[i] < Dots[zeroId] ? i : zeroId;
+                    }
+                    zero = Dots[zeroId];
+                    rotate(Dots.begin(), Dots.begin() + zeroId, Dots.end());
+                    Dots.erase(Dots.begin());
+
+                    Angles.resize(Dots.size());
+                    for (int i = 0; i < Angles.size(); i++) {
+                        Angles[i] = angle(Dots[i] - zero);
+                    }
+                }
+            };
+            static isOnData Data(poly);
+
+            if (efloat(point.x) >= Data.zero.x) {
+                if (efloat(point.x) == Data.zero.x && efloat(point.y) == Data.zero.y) {
                     return true;
                 }
                 else {
-                    angle my(point - zero);
-                    auto it = upper_bound(Angles.begin(), Angles.end(), my);
+                    isOnData::angle my(point - Data.zero);
+                    auto it = upper_bound(Data.Angles.begin(), Data.Angles.end(), my);
 
-                    if (it == Angles.end() && edouble(my.a) == Angles.back().a && edouble(my.b) == Angles.back().b) {
-                        it = Angles.end() - 1;
+                    if (it == Data.Angles.end() && efloat(my.a) == Data.Angles.back().a && efloat(my.b) == Data.Angles.back().b) {
+                        it = Data.Angles.end() - 1;
                     }
 
-                    if (it != Angles.end() && it != Angles.begin()) {
-                        int p1 = int(it - Angles.begin());
-                        if (sq(Dots[p1], Dots[p1 - 1], point) <= 0) {
+                    if (it != Data.Angles.end() && it != Data.Angles.begin()) {
+                        int p1 = int(it - Data.Angles.begin());
+                        if (sq(Data.Dots[p1], Data.Dots[p1 - 1], point) <= 0) {
                             return true;
                         }
                     }
@@ -2840,7 +2881,7 @@ namespace mpg {
         circle getCircle() const {
             // возвращает минимальный радиус окружности в точке point
             auto getRadius = [](const std::vector<dot>& Dots, const dot& point) {
-                double result = line(Dots[0], Dots[1]).dist(point);
+                float_type result = line(Dots[0], Dots[1]).dist(point);
                 for (int i = 2; i < Dots.size(); i++) {
                     result = std::min(result, line(Dots[i - 1], Dots[i]).dist(point));
                 }
@@ -2848,27 +2889,27 @@ namespace mpg {
             };
 
             // возвращает y
-            auto yFind = [&getRadius](double x, const std::vector<dot>& Dots) {
-                double left = inf, right = -inf;
+            auto yFind = [&getRadius](float_type x, const std::vector<dot>& Dots) {
+                float_type left = inf, right = -inf;
                 for (int i = 0; i < Dots.size(); i++) {
                     dot p1 = Dots[i], p2 = Dots[(i + 1) % Dots.size()];
-                    if (edouble(p1.x) == p2.x) {
+                    if (efloat(p1.x) == p2.x) {
                         continue;
                     }
-                    if (edouble(p1.x) > p2.x) {
+                    if (efloat(p1.x) > p2.x) {
                         std::swap(p1, p2);
                     }
-                    if (edouble(p1.x) <= x && edouble(x) <= p2.x) {
-                        double y = p1.y + (x - p1.x) * (p2.y - p1.y) / (p2.x - p1.x);
+                    if (efloat(p1.x) <= x && efloat(x) <= p2.x) {
+                        float_type y = p1.y + (x - p1.x) * (p2.y - p1.y) / (p2.x - p1.x);
                         left = std::min(left, y);
                         right = std::max(right, y);
                     }
                 }
 
-                while (edouble(left) < right) {
-                    double mid1 = (2 * left + right) / 3;
-                    double mid2 = (left + 2 * right) / 3;
-                    if (edouble(getRadius(Dots, dot(x, mid1))) < getRadius(Dots, dot(x, mid2))) {
+                while (efloat(left) < right) {
+                    float_type mid1 = (2 * left + right) / 3;
+                    float_type mid2 = (left + 2 * right) / 3;
+                    if (efloat(getRadius(Dots, dot(x, mid1))) < getRadius(Dots, dot(x, mid2))) {
                         left = mid1;
                     }
                     else {
@@ -2878,16 +2919,16 @@ namespace mpg {
                 return left;
             };
 
-            double left(poly.Dots[0].x), right(poly.Dots[0].x);
+            float_type left(poly.Dots[0].x), right(poly.Dots[0].x);
             for (int i = 1; i < poly.Dots.size(); i++) {
                 left = std::min(left, poly.Dots[i].x);
                 right = std::max(right, poly.Dots[i].x);
             }
 
-            while (edouble(left) < right) {
-                double mid1 = (2 * left + right) / 3;
-                double mid2 = (left + 2 * right) / 3;
-                if (edouble(getRadius(poly.Dots, dot(mid1, yFind(mid1, poly.Dots)))) <
+            while (efloat(left) < right) {
+                float_type mid1 = (2 * left + right) / 3;
+                float_type mid2 = (left + 2 * right) / 3;
+                if (efloat(getRadius(poly.Dots, dot(mid1, yFind(mid1, poly.Dots)))) <
                     getRadius(poly.Dots, dot(mid2, yFind(mid2, poly.Dots)))) {
                     left = mid1;
                 }
@@ -2902,48 +2943,6 @@ namespace mpg {
 
     private:
 
-        struct angle {
-            double a, b;
-
-            angle() {}
-            angle(const dot& p) {
-                a = p.y;
-                b = p.x;
-                if (edouble(a) == 0) {
-                    b = edouble(b) < 0 ? -1 : 1;
-                }
-            }
-
-            bool operator < (const angle& Rhs) const {
-                if (edouble(b) == 0 && edouble(Rhs.b) == 0) {
-                    return edouble(a) < Rhs.a;
-                }
-                return edouble(a * Rhs.b) < edouble(b * Rhs.a);
-            }
-        };
-
-        std::vector<dot> Dots;
-        dot zero; // самая левая нижняя точка
-        std::vector<angle> Angles; // углы
-
-        // инициализирует данные для проверки принадлежности точки выпуклой оболочки
-        void init() {
-            Dots = poly.Dots;
-            int zeroId = 0;
-            for (int i = 0; i < Dots.size(); i++) {
-                zeroId = Dots[i] < Dots[zeroId] ? i : zeroId;
-            }
-            zero = Dots[zeroId];
-            rotate(Dots.begin(), Dots.begin() + zeroId, Dots.end());
-            Dots.erase(Dots.begin());
-
-            Angles.resize(Dots.size());
-            for (int i = 0; i < Angles.size(); i++) {
-                Angles[i] = angle(Dots[i] - zero);
-            }
-        }
-
-
         // Построение выпуклой оболочки за O(n * log n)
         std::vector<dot> buildConvexHull(std::vector<dot> Dots) {
             std::vector<dot> result;
@@ -2957,7 +2956,7 @@ namespace mpg {
             result.push_back(Dots[0]);
             for (int i = 1; i < Dots.size(); i++) {
                 while (result.size() > 1 &&
-                    edouble((Dots[i] - result[result.size() - 2]) % (result.back() - result[result.size() - 2])) <= 0) {
+                    efloat((Dots[i] - result[result.size() - 2]) % (result.back() - result[result.size() - 2])) <= 0) {
                     result.pop_back();
                 }
                 result.push_back(Dots[i]);
@@ -3758,9 +3757,6 @@ using namespace std;
 
 int main() {
 
-    eclock t;
-    emt::factorial(7000);// << "\n";
-    cout << t;
     
     return 0;
 }
