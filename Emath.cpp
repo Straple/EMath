@@ -3040,7 +3040,6 @@ namespace emt {
                 return compare(Rhs) == OP::more;
             }
 
-            // return a + b
             basicLong operator + (const basicLong& added) const {
                 basicLong result = *this;
                 bool k = 0;
@@ -3057,7 +3056,6 @@ namespace emt {
                 return result;
             }
 
-            // return minuend - subtrahend
             basicLong operator - (const basicLong& subtrahend) const {
                 basicLong result = *this;
 
@@ -3138,7 +3136,6 @@ namespace emt {
                 }
             }
 
-            // return a * b
             basicLong operator * (const basicLong& mult) const {
                 int k = std::max(this->digits.size(), mult.digits.size());
                 if (k <= 128) {
@@ -3153,7 +3150,6 @@ namespace emt {
                 }
             }
 
-            // return dividend / divider
             basicLong operator / (const basicLong& divider) const {
                 // если divider == 2
                 if (divider.digits.size() == 1 && divider.digits.front() == 2) {
@@ -3206,7 +3202,6 @@ namespace emt {
                 }
             }
 
-            // return dividend % divider
             basicLong operator % (const basicLong& divider) const {
                 if (divider.digits.size() == 1 && divider.digits.front() == 2) {
                     basicLong res;
@@ -3301,7 +3296,7 @@ namespace emt {
         };
 
         basicLong value;
-        bool isNegative = false;
+        bool isNegative;
 
         // update
         elong& update() {
@@ -3313,6 +3308,10 @@ namespace emt {
 
         elong(const basicLong& value, bool isNegative) {
             this->value = value;
+            this->isNegative = isNegative;
+        }
+        elong(basicLong&& value, bool isNegative) {
+            this->value = std::move(value);
             this->isNegative = isNegative;
         }
 
@@ -3382,6 +3381,7 @@ namespace emt {
         // default constructor
         elong() {
             value.digits.push_back(0);
+            isNegative = false;
         }
 
         // convert constructors[
@@ -3397,10 +3397,15 @@ namespace emt {
         elong(long long number) {
             isNegative = number < 0;
             number *= isNegative ? -1 : 1;
+
             value.digits.push_back(number % long_base);
             number /= long_base;
             if (number > 0) {
-                value.digits.push_back(number);
+                value.digits.push_back(number % long_base);
+                number /= long_base;
+                if (number > 0) {
+                    value.digits.push_back(number);
+                }
             }
         }
         // ]
@@ -3468,7 +3473,7 @@ namespace emt {
                 return added.isNegative ? -(-*this + (-added)) : added - (-*this);
             }
             else {
-                return added.isNegative ? *this - (-added) : elong(value + added.value, false);
+                return added.isNegative ? *this - (-added) : elong(std::move(value + added.value), false);
             }
         }
         elong& operator += (const elong& added) {
@@ -3483,7 +3488,7 @@ namespace emt {
                 return -(-*this + subtrahend);
             }
             else {
-                return *this < subtrahend ? -(subtrahend - *this) : elong(value - subtrahend.value, false).update();
+                return *this < subtrahend ? -(subtrahend - *this) : elong(std::move(value - subtrahend.value), false).update();
             }
         }
         elong& operator -= (const elong& subtrahend) {
@@ -3491,21 +3496,21 @@ namespace emt {
         }
 
         elong operator * (const elong& multiplied) const {
-            return elong(value * multiplied.value, isNegative != multiplied.isNegative).update();
+            return elong(std::move(value * multiplied.value), isNegative != multiplied.isNegative).update();
         }
         elong& operator *= (const elong& multiplied) {
             return *this = *this * multiplied;
         }
 
         elong operator / (const elong& divider) const {
-            return elong(value / divider.value, isNegative != divider.isNegative).update();
+            return elong(std::move(value / divider.value), isNegative != divider.isNegative).update();
         }
         elong& operator /= (const elong& divider) {
             return *this = *this / divider;
         }
 
         elong operator % (const elong& divider) const {
-            return elong(value % divider.value, false).update();
+            return elong(std::move(value % divider.value), false).update();
         }
         elong& operator %= (const elong& divider) {
             return *this = *this % divider;
@@ -3529,7 +3534,7 @@ namespace emt {
         }
 
         elong sqrt() const {
-            return elong(value.sqrt(), false).update();
+            return elong(std::move(value.sqrt()), false).update();
         }
 
         // friend function :)
@@ -3752,6 +3757,10 @@ using namespace std;
 
 
 int main() {
+
+    eclock t;
+    emt::factorial(7000);// << "\n";
+    cout << t;
     
     return 0;
 }
