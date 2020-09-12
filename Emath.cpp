@@ -1,4 +1,6 @@
-﻿#include<cstring>
+﻿// Emath 1.1 | Developed by Mr_Straym
+
+#include<cstring>
 #include<iomanip>
 #include<algorithm>
 #include<vector>
@@ -14,21 +16,21 @@
 
 //std::ofstream debugLog("debug.txt");
 
-// Emath 1.0 | Developed by Mr_Straym
-
 // Utils: eclock, random, vector addition, clamp, range, roundTwo
 namespace utl {
 
     class eclock {
-        std::chrono::steady_clock::time_point begin;
+        typedef std::chrono::steady_clock::time_point timePoint;
 
-        std::chrono::steady_clock::time_point newNow() const {
+        timePoint begin;
+
+        timePoint newNow() const {
             return std::chrono::high_resolution_clock::now();
         }
 
     public:
         eclock() {
-            begin = newNow();
+            reset();
         }
         void reset() {
             begin = newNow();
@@ -36,7 +38,7 @@ namespace utl {
 
         // ms
         double count() const {
-            std::chrono::duration<double> time = newNow() - begin;
+            auto time = newNow() - begin;
             return time.count() * 1000;
         }
     };
@@ -1767,7 +1769,7 @@ namespace alg {
 
         // return true if n is prime. O(sqrt n)
         template<typename T>
-        bool isPrime(T n) {
+        bool isPrime(const T& n) {
             T i, sqrtN = std::sqrt(n);
             // пока идем до корня и i не является делителем n
             for (i = 2; i <= sqrtN && n % i != 0; i++) {}
@@ -1775,7 +1777,7 @@ namespace alg {
         }
 
         // factorizes the number
-        // vector<a^b>
+        // vector<p^a>
         template<typename T>
         std::vector<std::pair<T, int>> factorize(T N) {
             std::vector<std::pair<T, int>> result;
@@ -3756,7 +3758,8 @@ using namespace std;
 
 
 int main() {
+    ifstream cin("input.txt");
 
-    
+
     return 0;
 }
