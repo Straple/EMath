@@ -89,18 +89,17 @@ namespace utl {
     }
 
     // округление до степени 2
-    size_t roundTwo(const size_t n) {
-        int left = 0, right = 64;
-        while (left < right - 1) {
-            int mid = (left + right) >> 1;
-            if ((static_cast<size_t>(1) << mid) < n) {
-                left = mid;
-            }
-            else {
-                right = mid;
-            }
-        }
-        return static_cast<size_t>(1) << (left + 1);
+    size_t roundTwo(size_t v) {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v |= v >> 32;
+        v++;
+
+        return v;
     }
 }
 using namespace utl;
@@ -2488,7 +2487,7 @@ namespace alg {
         // sortArray1 + sortArray2
         template<typename T>
         void merge(T* begin, T* mid, T* end, T* A) {
-            T* left = begin, *right = mid;
+            T* left = begin, * right = mid;
             int i = 0;
             // пока не вышли за пределы
             while (left != mid && right != end) {
@@ -2530,7 +2529,7 @@ namespace alg {
                     len++;
                 }
             }
-            T* Res = new T[len], *A = new T[len];
+            T* Res = new T[len], * A = new T[len];
             int i;
             { // move to Res
                 i = 0;
@@ -3802,7 +3801,7 @@ namespace mem {
         // O(log n). n - колво отрезков
         void* allocate(size_t length) {
             void* res;
-            
+
             auto it = freeSeg.lower_bound(freeSegment(0, length));
             if (it != freeSeg.end()) { // нашли нужный отрезок
                 segment newSegment(it->begin, length, false);// выделяем запрошенный отрезок
@@ -3900,7 +3899,7 @@ using namespace std;
 int main() {
     //ifstream cin("input.txt");
 
-    
+
 
     return 0;
 }
