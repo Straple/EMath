@@ -38,7 +38,7 @@ namespace utl {
 
         // ms
         double count() const {
-            auto time = newNow() - begin;
+            std::chrono::duration<double> time = newNow() - begin;
             return time.count() * 1000;
         }
     };
@@ -1727,7 +1727,7 @@ namespace dst {
 // Algorithm: Numbers, Graphs, Strings, Sort
 namespace alg {
 
-    // Numbers: sqrt, eratosthenesSieve, isPrime, factorize, epow, gcd, gcd(xy), lcm, fibonacci
+    // Numbers: sqrt, namespace prime, factorize, epow, gcd, gcd(xy), lcm, fibonacci
     namespace nmb {
         // Метод Ньютона для поиска целочисленных корней
         template<typename T>
@@ -1745,35 +1745,175 @@ namespace alg {
             return x;
         }
 
-        // Решето Эратосфена
-        template<typename T>
-        std::vector<T> eratosthenesSieve(T n) {
-            dst::bits prime(n + 1, true);
-            for (int i = 2; i * i <= n; i++) {
-                if (prime[i]) {
-                    for (int j = i * i; j <= n; j += i) {
-                        prime.set(j, false);
+        // isPrime, lineSieve, sieve_info, lineSieveInfo, blockSieve, getPrimes
+        namespace prime {
+            // return true if n is prime. O(sqrt n)
+            template<typename T>
+            bool isPrime(const T& n) {
+                T i, sqrtN = std::sqrt(n);
+                // пока идем до корня и i не является делителем n
+                for (i = 2; i <= sqrtN && n % i != 0; i++) {}
+                return i > sqrtN;
+            }
+
+            // O(n)
+            std::vector<int> lineSieve(long long n) {
+                std::vector<int> primes, d(n + 1, -1);
+
+                for (long long y = 2; y <= n; y++) {
+                    if (d[y] == -1) { // новое простое
+                        d[y] = primes.size();
+                        primes.push_back(y);
+                    }
+                    for (long long i = 0; i <= d[y] && y * primes[i] <= n; i++) {
+                        d[y * primes[i]] = i;
                     }
                 }
+
+                return primes;
             }
 
-            std::vector<T> result;
-            result.push_back(2);
-            for (int i = 3; i <= n; i += 2) {
-                if (prime[i]) {
-                    result.push_back(i);
+            // дополнительная информация для линейного решета Эратосфена
+            struct sieve_info {
+                std::vector<int>    primes; // primes[i] - простой делитель
+                std::vector<int>         d; // d[x] - индекс минимального простого делителя числа x в массиве primes
+                std::vector<int>       deg; // deg[x] - степень вхождения минимального простого делителя числа x
+                std::vector<int>      rest; // rest[x] - x / p1^a1 - остаток числа x от p1^a1
+                std::vector<int>      term; // term[x] - p1^a1
+                std::vector<int>       phi; // количество взаимно простых с n
+                std::vector<long long> div; // div[x] - количество делителей x
+                std::vector<long long>  s1; // s1[x] - сумма делителей x
+
+                sieve_info() {}
+                sieve_info(long long n) {
+                    d.resize(n + 1, -1);
+
+                    deg.resize(n + 1, 0);
+                    rest.resize(n + 1, 0);
+                    term.resize(n + 1, 0);
+
+                    phi.resize(n + 1, 1);
+                    div.resize(n + 1, 1);
+
+                    s1.resize(n + 1, 0);
+                    s1[1] = 1;
                 }
-            }
-            return result;
-        }
 
-        // return true if n is prime. O(sqrt n)
-        template<typename T>
-        bool isPrime(const T& n) {
-            T i, sqrtN = std::sqrt(n);
-            // пока идем до корня и i не является делителем n
-            for (i = 2; i <= sqrtN && n % i != 0; i++) {}
-            return i > sqrtN;
+                // обновляет информацию для x
+                void update(long long x) {
+                    long long p_x = primes[d[x]];
+                    long long y_x = x / p_x;
+
+                    deg[x] = d[y_x] == d[x] ? deg[y_x] + 1 : 1;
+
+                    rest[x] = d[y_x] == d[x] ? rest[y_x] : y_x;
+
+                    term[x] = x / rest[x];
+
+                    phi[x] = phi[rest[x]] * (term[x] / p_x) * (p_x - 1);
+
+                    div[x] = div[rest[x]] * static_cast<long long>(deg[x] + 1);
+
+                    s1[x] = s1[rest[x]] * ((p_x * term[x] - 1) / (p_x - 1));
+                }
+            };
+
+            // O(n) + доп информация
+            sieve_info lineSieveInfo(long long n) {
+                sieve_info info(n);
+
+                for (long long y = 2; y <= n; y++) {
+                    if (info.d[y] == -1) { // новое простое
+                        info.d[y] = info.primes.size();
+                        info.primes.push_back(y);
+                    }
+                    for (long long i = 0; i <= info.d[y] && y * info.primes[i] <= n; i++) {
+                        info.d[y * info.primes[i]] = i;
+                    }
+
+                    info.update(y); // обновление доп информации
+                }
+
+                return info;
+            }
+
+            // O(n * log log n). память sqrt(n). 
+            // Находит все простые на отрезке [left, right]
+            std::vector<int> blockSieve(long long left, long long right) {
+                long long sqrtN = sqrt(right);
+                long long s = std::max(sqrtN, static_cast<long long>(30));
+                std::vector<int> primes;
+
+                // просеивание до корня
+                {
+                    std::vector<bool> isPrime(sqrtN + 1, false);
+
+                    for (long long i = 2; i <= sqrtN; i++) {
+                        if (!isPrime[i]) { // простое
+                            primes.push_back(i);
+                            for (long long j = i * i; j <= sqrtN; j += i) {
+                                isPrime[j] = true;
+                            }
+                        }
+                    }
+                }
+
+                std::vector<int> result;
+
+                for (long long k = left / s, maxk = right / s; k <= maxk; k++) {
+                    std::vector<bool> isPrime(s + 1, false);
+
+                    long long begin = k * s;
+                    for (long long i = 0; i < primes.size(); ++i) {
+                        long long beginIndex = (begin + primes[i] - 1) / primes[i];
+                        long long j = std::max(beginIndex, static_cast<long long>(2)) * primes[i] - begin;
+                        for (; j < s; j += primes[i]) {
+                            isPrime[j] = true;
+                        }
+                    }
+                    if (k == 0) { // ответ должен быть без 0 и 1
+                        isPrime[0] = isPrime[1] = true;
+                    }
+                    for (long long i = 0; i < s && begin + i <= right; ++i) {
+                        if (left <= begin + i && !isPrime[i]) { // простое
+                            result.push_back(begin + i);
+                        }
+                    }
+                }
+                return result;
+            }
+
+            // O(n * log log n). primes [n^2, n^2 + n]
+            std::vector<int> getPrimes(long long n) {
+                std::vector<bool> isPrime(n + 1, true); // 0
+                std::vector<bool> NisPrime(n + 1, true); // n * n 
+
+                for (long long x = 2; x <= n; x++) {
+                    if (isPrime[x]) {
+                        for (long long y = x * x; y <= n; y += x) {
+                            isPrime[y] = false;
+                        }
+
+                        long long y = (n * n / x) * x;
+                        while (y < n * n) {
+                            y += x;
+                        }
+
+                        while (y <= n * n + n) {
+                            NisPrime[y - n * n] = false;
+                            y += x;
+                        }
+                    }
+                }
+
+                std::vector<int> primes; // result
+                for (long long i = 0; i <= n; i++) {
+                    if (NisPrime[i]) {
+                        primes.push_back(i + n * n);
+                    }
+                }
+                return primes;
+            }
         }
 
         // factorizes the number
@@ -3758,8 +3898,9 @@ using namespace std;
 
 
 int main() {
-    ifstream cin("input.txt");
+    //ifstream cin("input.txt");
 
+    
 
     return 0;
 }
