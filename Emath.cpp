@@ -1811,7 +1811,7 @@ namespace alg {
 
                     phi[x] = phi[rest[x]] * (term[x] / p_x) * (p_x - 1);
 
-                    div[x] = div[rest[x]] * static_cast<long long>(deg[x] + 1);
+                    div[x] = div[rest[x]] * (static_cast<long long>(deg[x]) + 1);
 
                     s1[x] = s1[rest[x]] * ((p_x * term[x] - 1) / (p_x - 1));
                 }
@@ -2336,11 +2336,11 @@ namespace alg {
     namespace str {
         // z функция для строки за O(n)
         std::vector<int> zFunction(const std::string& str) {
-            int n = str.size();
+            long long n = str.size();
             std::vector<int> z(n);
-            for (int i = 1, l = 0, r = 0; i < n; i++) {
+            for (long long i = 1, l = 0, r = 0; i < n; i++) {
                 if (i <= r) {
-                    z[i] = std::min(r - i + 1, z[i - l]);
+                    z[i] = std::min(r - i + 1, static_cast<long long>(z[i - l]));
                 }
                 while (i + z[i] < n && str[z[i]] == str[i + z[i]]) {
                     z[i]++;
@@ -2428,10 +2428,10 @@ namespace alg {
         }
 
         std::vector<int> preFunction(const std::string& str) {
-            int n = str.size();
+            long long n = str.size();
             std::vector<int> result(n);
-            for (int i = 1; i < n; i++) {
-                int j = result[i - 1];
+            for (long long i = 1; i < n; i++) {
+                long long j = result[i - 1];
                 while (j > 0 && str[i] != str[j]) {
                     j = result[j - 1];
                 }
@@ -3032,7 +3032,7 @@ namespace mpg {
             // возвращает y
             auto yFind = [&getRadius](float_type x, const std::vector<dot>& Dots) {
                 float_type left = inf, right = -inf;
-                for (int i = 0; i < Dots.size(); i++) {
+                for (long long i = 0; i < Dots.size(); i++) {
                     dot p1 = Dots[i], p2 = Dots[(i + 1) % Dots.size()];
                     if (efloat(p1.x) == p2.x) {
                         continue;
@@ -3548,6 +3548,7 @@ namespace emt {
                 }
             }
         }
+
         // ]
 
         //bool operators [
@@ -3679,6 +3680,7 @@ namespace emt {
 
         // friend function :)
         friend std::ostream& operator << (std::ostream& out, const elong& var);
+        friend emt::elong cast(size_t number);
 
         // long > 0
         explicit operator bool() const {
@@ -3708,6 +3710,23 @@ namespace emt {
     template<typename T>
     elong operator % (const T& a, const elong& b) {
         return elong(a) % b;
+    }
+
+    elong cast(size_t number) {
+        bool isNegative = false;
+        emt::elong::basicLong value;
+        size_t ulong_base = static_cast<size_t>(long_base);
+
+        value.digits.push_back(number % ulong_base);
+        number /= ulong_base;
+        if (number > 0) {
+            value.digits.push_back(number % ulong_base);
+            number /= ulong_base;
+            if (number > 0) {
+                value.digits.push_back(number);
+            }
+        }
+        return emt::elong(value, isNegative);
     }
 
 
@@ -3895,11 +3914,224 @@ void operator delete[](void* ptr) {
 #include<bits/stdc++.h>
 using namespace std;
 
+// unsigned int128 beta
+// (1 << 128) = 340282366920938463463374607431768211456
+class u128 {
+    typedef unsigned long long u64;
+
+    u64 left, right;
+    // value = left + right * 2^64
+
+    u128(u64 l, u64 r) {
+        left = l;
+        right = r;
+    }
+
+    // расширяет число
+    void reduction(u64 A[4]) const {
+        A[1] = left >> 32;
+        A[3] = right >> 32;
+
+        A[0] = left - (A[1] << 32);
+        A[2] = right - (A[3] << 32);
+    }
+
+    // naive multip
+    u128 naiveMul(const u128& x, const u128& y) const {
+        u64 result[] = { 0, 0, 0, 0 };
+        static u64 mult1[4], mult2[4];
+
+        x.reduction(mult1);
+        y.reduction(mult2);
+
+        u64 c, k;
+        int i, j;
+        for (i = 0; i < 4; i++) {
+            c = 0;
+            for (j = 0; j < 4 || c != 0; j++) {
+                k = result[(i + j) % 4] + mult1[i] * mult2[j] + c;
+                c = k >> 32;
+                result[(i + j) % 4] = k - (c << 32);
+            }
+        }
+
+        return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
+    }
+
+    // karatsuba multip. NEED TO UPDATE
+    u128 KaratsubaMul(const u128& x, const u128& y) const {
+        u128 Xl = x.left, Xr = x.right, Yl = y.left, Yr = y.right;
+        u128 sumX = Xl + Xr, sumY = Yl + Yr;
+
+        u128 P1;
+        {
+            if (Xl.left * Yl.left < static_cast<double>(Xl.left) * Yl.left) { // overflow
+                P1 = naiveMul(Xl, Yl);
+            }
+            else {
+                P1 = Xl.left * Yl.left;
+            }
+        }
+
+        u128 P2;
+        {
+            if (Xr.left * Yr.left < static_cast<double>(Xr.left) * Yr.left) { // overflow
+                P2 = naiveMul(Xr, Yr);
+            }
+            else {
+                P2 = Xr.left * Yr.left;
+            }
+        }
+
+        u128 P3;
+        {
+            if (sumX.right != 0 || sumY.right != 0 || sumX.left * sumY.left < static_cast<double>(sumX.left) * sumY.left) { // overflow
+                P3 = naiveMul(sumX, sumY);
+            }
+            else {
+                P3 = sumX.left * sumY.left;
+            }
+        }
+
+
+        // P1 * base^n + (P3 - P1 - P2) * base^half + P2;
+        u128 P312 = P3 - P1 - P2;
+        u128 P312H = u128(0, P312.left);
+        u128 res = P312H + P1;
+        return res;
+    }
+
+public:
+    u128() {
+        left = right = 0;
+    }
+    u128(u64 value) {
+        left = value;
+        right = 0;
+    }
+
+    bool operator == (const u128& Rhs) const {
+        return left == Rhs.left && right == Rhs.right;
+    }
+    bool operator != (const u128& Rhs) const {
+        return !(*this == Rhs);
+    }
+    bool operator <  (const u128& Rhs) const {
+        return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
+    }
+    bool operator >  (const u128& Rhs) const {
+        return right == Rhs.right ? left > Rhs.left : right > Rhs.right;
+    }
+
+    bool operator <= (const u128& Rhs) const {
+        return !(*this > Rhs);
+    }
+    bool operator >= (const u128& Rhs) const {
+        return !(*this < Rhs);
+    }
+
+    u128& operator ++ () {
+        left++;
+        if (left == 0) { // overflow
+            right++;
+        }
+        return *this;
+    }
+    u128  operator ++ (int) {
+        u128 temp = *this;
+        this->operator++();
+        return temp;
+    }
+
+    u128& operator -- () {
+        if (left == 0) { // overflow
+            right--;
+        }
+        left--;
+        return *this;
+    }
+    u128  operator -- (int) {
+        u128 temp = *this;
+        this->operator--();
+        return temp;
+    }
+
+    u128 operator + (const u128& add) const {
+        u128 result(left + add.left, right + add.right);
+        // если сумма получилась меньше максимума
+        if (result.left < std::max(left, add.left)) { // overflow
+            result.right++;
+        }
+        return result;
+    }
+    u128 operator - (const u128& sub) const {
+        u128 result(left - sub.left, right - sub.right);
+        // если уменьшаемое меньше вычитаемого
+        if (left < result.left) { // overflow
+            result.right--;
+        }
+        return result;
+    }
+    u128 operator * (const u128& mult) const {
+        return naiveMul(*this, mult);
+    }
+
+    u128& operator += (const u128& add) {
+        return *this = *this + add;
+    }
+    u128& operator -= (const u128& sub) {
+        return *this = *this - sub;
+    }
+    u128& operator *= (const u128& mult) {
+        return *this = *this * mult;
+    }
+
+    u128 operator & (const u128& k) const {
+        return u128(left & k.left, right & k.right);
+    }
+    u128 operator | (const u128& k) const {
+        return u128(left | k.left, right | k.right);
+    }
+    u128 operator ^ (const u128& k) const {
+        return u128(left ^ k.left, right ^ k.right);
+    }
+    u128 operator ~ () const {
+        return u128(~left, ~right);
+    }
+
+    u128& operator &= (const u128& k) {
+        return *this = *this & k;
+    }
+    u128& operator |= (const u128& k) {
+        return *this = *this | k;
+    }
+    u128& operator ^= (const u128& k) {
+        return *this = *this ^ k;
+    }
+
+    u128 operator << (u64 bits) const {
+        return *this * alg::nmb::epow(u128(2), bits);
+    }
+
+    u128& operator <<= (u64 bits) {
+        return *this = *this << bits;
+    }
+
+    template<typename T>
+    explicit operator T() const {
+        return (static_cast<T>(right) << 64) + left;
+    }
+
+    // debug 
+    emt::elong getLong() const {
+        return (emt::cast(right) << 64) + emt::cast(left);
+    }
+};
+
 
 int main() {
     //ifstream cin("input.txt");
-
-
+    
 
     return 0;
 }
