@@ -91,15 +91,15 @@ namespace utl {
     // округление до степени 2
     size_t roundTwo(size_t v) {
         v--;
+
         v |= v >> 1;
         v |= v >> 2;
         v |= v >> 4;
         v |= v >> 8;
         v |= v >> 16;
         v |= v >> 32;
-        v++;
 
-        return v;
+        return v + 1;
     }
 }
 using namespace utl;
@@ -1996,6 +1996,7 @@ namespace alg {
             }
         }
 
+
         // Линейные диофантовы уравнения с двумя переменными
         // a * x + b * y = c
         // a * xg + b * yg = g
@@ -3290,6 +3291,44 @@ namespace emt {
                 }
             }
 
+            std::pair<basicLong, basicLong> div(const basicLong& divider) const {
+                basicLong result, value, temp, t;
+
+                int i = digits.size() - 1;
+                while (i >= 0 && value < divider) {
+                    value.digits.push_front(digits[i]);
+                    i--;
+                }
+                value.digits.pop_front();
+                i++;
+                for (; i >= 0; i--) {
+                    value.remove_leading_zeros();
+                    value.digits.push_front(digits[i]);
+
+                    long long l = 0, r = long_base;
+                    while (l < r - 1) {
+                        long long m = (l + r) >> 1;
+
+                        temp.digits.push_back(m);
+                        t = divider * temp;
+                        temp.digits.pop_back();
+
+                        if (value < t) {
+                            r = m;
+                        }
+                        else {
+                            l = m;
+                        }
+                    }
+
+                    result.digits.push_front(l);
+                    temp.digits.push_back(l);
+                    value = value - divider * temp;
+                    temp.digits.pop_back();
+                }
+                return std::make_pair(result, value);
+            }
+
             basicLong operator / (const basicLong& divider) const {
                 // если divider == 2
                 if (divider.digits.size() == 1 && divider.digits.front() == 2) {
@@ -3304,41 +3343,7 @@ namespace emt {
                     return res.remove_leading_zeros();
                 }
                 else {
-                    basicLong result, value, temp, t;
-
-                    int i = digits.size() - 1;
-                    while (i >= 0 && value < divider) {
-                        value.digits.push_front(digits[i]);
-                        i--;
-                    }
-                    value.digits.pop_front();
-                    i++;
-                    for (; i >= 0; i--) {
-                        value.remove_leading_zeros();
-                        value.digits.push_front(digits[i]);
-
-                        long long l = 0, r = long_base;
-                        while (l < r - 1) {
-                            long long m = (l + r) >> 1;
-
-                            temp.digits.push_back(m);
-                            t = divider * temp;
-                            temp.digits.pop_back();
-
-                            if (value < t) {
-                                r = m;
-                            }
-                            else {
-                                l = m;
-                            }
-                        }
-
-                        result.digits.push_front(l);
-                        temp.digits.push_back(l);
-                        value = value - divider * temp;
-                        temp.digits.pop_back();
-                    }
-                    return result;
+                    return div(divider).first;
                 }
             }
 
@@ -3349,42 +3354,10 @@ namespace emt {
                     return res;
                 }
                 else {
-                    basicLong result, temp, t;
-
-                    int i = digits.size() - 1;
-                    while (i >= 0 && result < divider) {
-                        result.digits.push_front(digits[i]);
-                        i--;
-                    }
-                    result.digits.pop_front();
-                    i++;
-                    for (; i >= 0; i--) {
-                        result.remove_leading_zeros();
-                        result.digits.push_front(digits[i]);
-
-                        long long l = 0, r = long_base;
-                        while (l < r - 1) {
-                            long long m = (l + r) >> 1;
-
-                            temp.digits.push_back(m);
-                            t = divider * temp;
-                            temp.digits.pop_back();
-
-                            if (result < t) {
-                                r = m;
-                            }
-                            else {
-                                l = m;
-                            }
-                        }
-
-                        temp.digits.push_back(l);
-                        result = result - divider * temp;
-                        temp.digits.pop_back();
-                    }
-                    return result;
+                    return div(divider).second;
                 }
             }
+            
 
             // сдвигает число на long_base^k влево
             basicLong operator << (int k) const {
@@ -3534,7 +3507,8 @@ namespace emt {
             *this = elong(std::string(String));
         }
 
-        elong(long long number) {
+        template<typename T>
+        elong(T number) {
             isNegative = number < 0;
             number *= isNegative ? -1 : 1;
 
@@ -3656,6 +3630,11 @@ namespace emt {
         elong& operator %= (const elong& divider) {
             return *this = *this % divider;
         }
+
+        std::pair<elong, elong> div(const elong& divider) const{
+            auto p = std::move(value.div(divider.value));
+            return std::make_pair(elong(std::move(p.first), false).update(), elong(std::move(p.second), false).update());
+        }
         // ]
 
         // value * 2^k
@@ -3680,14 +3659,21 @@ namespace emt {
 
         // friend function :)
         friend std::ostream& operator << (std::ostream& out, const elong& var);
-        friend emt::elong cast(size_t number);
 
         // long > 0
         explicit operator bool() const {
             return !isNegative && value.digits[0] != 0;
         }
         explicit operator long long() const {
-            return value.digits[value.digits.size() - 1] * (isNegative ? -1 : 1);
+            return value.digits.back() * (isNegative ? -1 : 1);
+        }
+        explicit operator unsigned long long() const {
+            if (value.digits.size() == 1) {
+                return value.digits.back();
+            }
+            else {
+                return static_cast<unsigned long long>(value.digits[1]) * long_base + value.digits[0];
+            }
         }
     };
 
@@ -3711,24 +3697,6 @@ namespace emt {
     elong operator % (const T& a, const elong& b) {
         return elong(a) % b;
     }
-
-    elong cast(size_t number) {
-        bool isNegative = false;
-        emt::elong::basicLong value;
-        size_t ulong_base = static_cast<size_t>(long_base);
-
-        value.digits.push_back(number % ulong_base);
-        number /= ulong_base;
-        if (number > 0) {
-            value.digits.push_back(number % ulong_base);
-            number /= ulong_base;
-            if (number > 0) {
-                value.digits.push_back(number);
-            }
-        }
-        return emt::elong(value, isNegative);
-    }
-
 
     // output signed long integer
     std::ostream& operator << (std::ostream& out, const elong& var) {
@@ -3945,63 +3913,26 @@ class u128 {
         y.reduction(mult2);
 
         u64 c, k;
-        int i, j;
+        int i, j, ij;
         for (i = 0; i < 4; i++) {
             c = 0;
+            ij = i; // (i + j) % 4
             for (j = 0; j < 4 || c != 0; j++) {
-                k = result[(i + j) % 4] + mult1[i] * mult2[j] + c;
+                k = result[ij] + mult1[i] * mult2[j] + c;
                 c = k >> 32;
-                result[(i + j) % 4] = k - (c << 32);
+                result[ij] = k - (c << 32);
+
+                ij = ij == 3 ? 0 : ij + 1;
             }
         }
 
         return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
     }
 
-    // karatsuba multip. NEED TO UPDATE
-    u128 KaratsubaMul(const u128& x, const u128& y) const {
-        u128 Xl = x.left, Xr = x.right, Yl = y.left, Yr = y.right;
-        u128 sumX = Xl + Xr, sumY = Yl + Yr;
-
-        u128 P1;
-        {
-            if (Xl.left * Yl.left < static_cast<double>(Xl.left) * Yl.left) { // overflow
-                P1 = naiveMul(Xl, Yl);
-            }
-            else {
-                P1 = Xl.left * Yl.left;
-            }
-        }
-
-        u128 P2;
-        {
-            if (Xr.left * Yr.left < static_cast<double>(Xr.left) * Yr.left) { // overflow
-                P2 = naiveMul(Xr, Yr);
-            }
-            else {
-                P2 = Xr.left * Yr.left;
-            }
-        }
-
-        u128 P3;
-        {
-            if (sumX.right != 0 || sumY.right != 0 || sumX.left * sumY.left < static_cast<double>(sumX.left) * sumY.left) { // overflow
-                P3 = naiveMul(sumX, sumY);
-            }
-            else {
-                P3 = sumX.left * sumY.left;
-            }
-        }
-
-
-        // P1 * base^n + (P3 - P1 - P2) * base^half + P2;
-        u128 P312 = P3 - P1 - P2;
-        u128 P312H = u128(0, P312.left);
-        u128 res = P312H + P1;
-        return res;
-    }
-
 public:
+    // 1e6 раз
+    // 20ms - constuctors 
+
     u128() {
         left = right = 0;
     }
@@ -4010,11 +3941,14 @@ public:
         right = 0;
     }
 
+    // 1e6 раз
+    // 15-20ms - bool operators
+
     bool operator == (const u128& Rhs) const {
         return left == Rhs.left && right == Rhs.right;
     }
     bool operator != (const u128& Rhs) const {
-        return !(*this == Rhs);
+        return left != Rhs.left || right != Rhs.right;
     }
     bool operator <  (const u128& Rhs) const {
         return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
@@ -4024,12 +3958,13 @@ public:
     }
 
     bool operator <= (const u128& Rhs) const {
-        return !(*this > Rhs);
+        return right == Rhs.right ? left <= Rhs.left : right <= Rhs.right; // !(*this > Rhs)
     }
     bool operator >= (const u128& Rhs) const {
-        return !(*this < Rhs);
+        return right == Rhs.right ? left >= Rhs.left : right >= Rhs.right; //!(*this < Rhs)
     }
 
+    // 1e6 раз 15-20ms
     u128& operator ++ () {
         left++;
         if (left == 0) { // overflow
@@ -4037,12 +3972,14 @@ public:
         }
         return *this;
     }
+    // 1e6 раз 60ms
     u128  operator ++ (int) {
         u128 temp = *this;
         this->operator++();
         return temp;
     }
 
+    // 1e6 раз 15-20ms
     u128& operator -- () {
         if (left == 0) { // overflow
             right--;
@@ -4050,12 +3987,14 @@ public:
         left--;
         return *this;
     }
+    // 1e6 раз 60ms
     u128  operator -- (int) {
         u128 temp = *this;
         this->operator--();
         return temp;
     }
 
+    // 1e6 раз 60ms
     u128 operator + (const u128& add) const {
         u128 result(left + add.left, right + add.right);
         // если сумма получилась меньше максимума
@@ -4064,6 +4003,7 @@ public:
         }
         return result;
     }
+    // 1e6 раз 50ms
     u128 operator - (const u128& sub) const {
         u128 result(left - sub.left, right - sub.right);
         // если уменьшаемое меньше вычитаемого
@@ -4072,6 +4012,7 @@ public:
         }
         return result;
     }
+    // 1e6 раз 160ms
     u128 operator * (const u128& mult) const {
         return naiveMul(*this, mult);
     }
@@ -4085,6 +4026,9 @@ public:
     u128& operator *= (const u128& mult) {
         return *this = *this * mult;
     }
+
+    // 1e6 раз
+    // 30ms - bits operators
 
     u128 operator & (const u128& k) const {
         return u128(left & k.left, right & k.right);
@@ -4109,6 +4053,7 @@ public:
         return *this = *this ^ k;
     }
 
+    // 1e6 раз 2200ms
     u128 operator << (u64 bits) const {
         return *this * alg::nmb::epow(u128(2), bits);
     }
@@ -4119,19 +4064,32 @@ public:
 
     template<typename T>
     explicit operator T() const {
-        return (static_cast<T>(right) << 64) + left;
+        return (static_cast<T>(right) * "18446744073709551616") + left;
     }
 
-    // debug 
-    emt::elong getLong() const {
-        return (emt::cast(right) << 64) + emt::cast(left);
-    }
+    friend std::istream& operator >> (std::istream& input, u128& value);
 };
 
+// 0.6ms
+std::istream& operator >> (std::istream& input, u128& value) {
+    emt::elong Long;
+    input >> Long;
+    auto var = Long.div("18446744073709551616");
+    value = u128(var.second.operator size_t(), var.first.operator size_t());
+    return input;
+}
+// 2ms
+std::ostream& operator << (std::ostream& output, const u128& value) {
+    return output << (value.operator emt::elong());
+}
 
 int main() {
     //ifstream cin("input.txt");
-    
+
+    u128 a, b;
+    cin >> a >> b;
+
+    cout << a * b;
 
     return 0;
 }
