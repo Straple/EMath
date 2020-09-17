@@ -104,71 +104,8 @@ namespace utl {
 }
 using namespace utl;
 
-// Data Structures: var, bits, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
+// Data Structures: bits, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
 namespace dst {
-
-    class var {
-        void* memory;
-
-        void copy_memoryIsClear(const var& source) {
-            int sizeofLen = sizeof(source.memory) >> 1;
-            memory = malloc(sizeofLen);
-            int i = 0;
-            while (i < sizeofLen) {
-                static_cast<char*>(memory)[i] = static_cast<char*>(source.memory)[i];
-                i++;
-            }
-        }
-
-        void move_memoryIsClear(var& source) {
-            memory = source.memory;
-            source.memory = 0;
-        }
-
-    public:
-        var() {
-            memory = 0;
-        }
-        ~var() {
-            delete[] memory;
-        }
-        var(const var& source) {
-            copy_memoryIsClear(source);
-        }
-        var(var&& source) noexcept {
-            move_memoryIsClear(source);
-        }
-
-        var& operator = (const var& source) {
-            if (memory != source.memory) {
-                delete[] memory;
-                copy_memoryIsClear(source);
-            }
-            return *this;
-        }
-        var&& operator = (var&& source) noexcept {
-            if (memory != source.memory) {
-                delete[] memory;
-                move_memoryIsClear(source);
-            }
-            return std::move(*this);
-        }
-
-        // convert constructor
-        template<typename T>
-        var(const T value) {
-            *static_cast<T*>(memory = new T) = value;
-        }
-
-        template<typename T>
-        T& cast() {
-            return *static_cast<T*>(memory);
-        }
-        template<typename T>
-        const T& constCast() const {
-            return *static_cast<T*>(memory);
-        }
-    };
 
     // vetor<bool>
     class bits {
@@ -3740,6 +3677,278 @@ namespace emt {
     }
 }
 
+// Variables
+namespace var {
+
+    class var {
+        void* memory;
+
+        void copy_memoryIsClear(const var& source) {
+            int sizeofLen = sizeof(source.memory) >> 1;
+            memory = malloc(sizeofLen);
+            int i = 0;
+            while (i < sizeofLen) {
+                static_cast<char*>(memory)[i] = static_cast<char*>(source.memory)[i];
+                i++;
+            }
+        }
+
+        void move_memoryIsClear(var& source) {
+            memory = source.memory;
+            source.memory = 0;
+        }
+
+    public:
+        var() {
+            memory = 0;
+        }
+        ~var() {
+            delete[] memory;
+        }
+        var(const var& source) {
+            copy_memoryIsClear(source);
+        }
+        var(var&& source) noexcept {
+            move_memoryIsClear(source);
+        }
+
+        var& operator = (const var& source) {
+            if (memory != source.memory) {
+                delete[] memory;
+                copy_memoryIsClear(source);
+            }
+            return *this;
+        }
+        var&& operator = (var&& source) noexcept {
+            if (memory != source.memory) {
+                delete[] memory;
+                move_memoryIsClear(source);
+            }
+            return std::move(*this);
+        }
+
+        // convert constructor
+        template<typename T>
+        var(const T value) {
+            *static_cast<T*>(memory = new T) = value;
+        }
+
+        template<typename T>
+        T& cast() {
+            return *static_cast<T*>(memory);
+        }
+        template<typename T>
+        const T& constCast() const {
+            return *static_cast<T*>(memory);
+        }
+    };
+
+    const static emt::elong mod64 = "18446744073709551616";
+
+    // unsigned int128 beta
+    // (1 << 128) = 340282366920938463463374607431768211456
+    class u128 {
+        typedef unsigned long long u64;
+
+        u64 left, right;
+        // value = left + right * 2^64
+
+        u128(u64 l, u64 r) {
+            left = l;
+            right = r;
+        }
+
+        // расширяет число
+        void reduction(u64 A[4]) const {
+            A[1] = left >> 32;
+            A[3] = right >> 32;
+
+            A[0] = left - (A[1] << 32);
+            A[2] = right - (A[3] << 32);
+        }
+
+        // naive multip
+        u128 naiveMul(const u128& x, const u128& y) const {
+            u64 result[] = { 0, 0, 0, 0 };
+            static u64 mult1[4], mult2[4];
+
+            x.reduction(mult1);
+            y.reduction(mult2);
+
+            u64 c, k;
+            int i, j, ij;
+            for (i = 0; i < 4; i++) {
+                c = 0;
+                ij = i; // (i + j) % 4
+                for (j = 0; j < 4 || c != 0; j++) {
+                    k = result[ij] + mult1[i] * mult2[j] + c;
+                    c = k >> 32;
+                    result[ij] = k - (c << 32);
+
+                    ij = ij == 3 ? 0 : ij + 1;
+                }
+            }
+
+            return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
+        }
+
+    public:
+        // 1e6 раз
+        // 20ms - constuctors 
+
+        u128() {
+            left = right = 0;
+        }
+        u128(u64 value) {
+            left = value;
+            right = 0;
+        }
+
+        // 1e6 раз
+        // 15-20ms - bool operators
+
+        bool operator == (const u128& Rhs) const {
+            return left == Rhs.left && right == Rhs.right;
+        }
+        bool operator != (const u128& Rhs) const {
+            return left != Rhs.left || right != Rhs.right;
+        }
+        bool operator <  (const u128& Rhs) const {
+            return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
+        }
+        bool operator >  (const u128& Rhs) const {
+            return right == Rhs.right ? left > Rhs.left : right > Rhs.right;
+        }
+
+        bool operator <= (const u128& Rhs) const {
+            return right == Rhs.right ? left <= Rhs.left : right <= Rhs.right; // !(*this > Rhs)
+        }
+        bool operator >= (const u128& Rhs) const {
+            return right == Rhs.right ? left >= Rhs.left : right >= Rhs.right; //!(*this < Rhs)
+        }
+
+        // 1e6 раз 15-20ms
+        u128& operator ++ () {
+            left++;
+            if (left == 0) { // overflow
+                right++;
+            }
+            return *this;
+        }
+        // 1e6 раз 60ms
+        u128  operator ++ (int) {
+            u128 temp = *this;
+            this->operator++();
+            return temp;
+        }
+
+        // 1e6 раз 15-20ms
+        u128& operator -- () {
+            if (left == 0) { // overflow
+                right--;
+            }
+            left--;
+            return *this;
+        }
+        // 1e6 раз 60ms
+        u128  operator -- (int) {
+            u128 temp = *this;
+            this->operator--();
+            return temp;
+        }
+
+        // 1e6 раз 60ms
+        u128 operator + (const u128& add) const {
+            u128 result(left + add.left, right + add.right);
+            // если сумма получилась меньше максимума
+            if (result.left < std::max(left, add.left)) { // overflow
+                result.right++;
+            }
+            return result;
+        }
+        // 1e6 раз 50ms
+        u128 operator - (const u128& sub) const {
+            u128 result(left - sub.left, right - sub.right);
+            // если уменьшаемое меньше вычитаемого
+            if (left < result.left) { // overflow
+                result.right--;
+            }
+            return result;
+        }
+        // 1e6 раз 160ms
+        u128 operator * (const u128& mult) const {
+            return naiveMul(*this, mult);
+        }
+
+        u128& operator += (const u128& add) {
+            return *this = *this + add;
+        }
+        u128& operator -= (const u128& sub) {
+            return *this = *this - sub;
+        }
+        u128& operator *= (const u128& mult) {
+            return *this = *this * mult;
+        }
+
+        // 1e6 раз
+        // 30ms - bits operators
+
+        u128 operator & (const u128& k) const {
+            return u128(left & k.left, right & k.right);
+        }
+        u128 operator | (const u128& k) const {
+            return u128(left | k.left, right | k.right);
+        }
+        u128 operator ^ (const u128& k) const {
+            return u128(left ^ k.left, right ^ k.right);
+        }
+        u128 operator ~ () const {
+            return u128(~left, ~right);
+        }
+
+        u128& operator &= (const u128& k) {
+            return *this = *this & k;
+        }
+        u128& operator |= (const u128& k) {
+            return *this = *this | k;
+        }
+        u128& operator ^= (const u128& k) {
+            return *this = *this ^ k;
+        }
+
+        // 1e6 раз 2200ms
+        u128 operator << (u64 bits) const {
+            return *this * alg::nmb::epow(u128(2), bits);
+        }
+
+        u128& operator <<= (u64 bits) {
+            return *this = *this << bits;
+        }
+
+        template<typename T>
+        explicit operator T() const {
+            return (static_cast<T>(right) << 64) + left;
+        }
+        explicit operator emt::elong() const {
+            return (static_cast<emt::elong>(right) * mod64) + left;
+        }
+
+        friend std::istream& operator >> (std::istream& input, u128& value);
+    };
+    // 0.4ms
+    std::istream& operator >> (std::istream& input, u128& value) {
+        emt::elong Long;
+        input >> Long;
+        auto var = Long.div(mod64);
+        value = u128(var.second.operator size_t(), var.first.operator size_t());
+        return input;
+    }
+    // 1ms
+    std::ostream& operator << (std::ostream& output, const u128& value) {
+        return output << (value.operator emt::elong());
+    }
+}
+
 // Memory Manager: poolAllocator
 namespace mem {
     // memory pool
@@ -3882,214 +4091,9 @@ void operator delete[](void* ptr) {
 #include<bits/stdc++.h>
 using namespace std;
 
-// unsigned int128 beta
-// (1 << 128) = 340282366920938463463374607431768211456
-class u128 {
-    typedef unsigned long long u64;
-
-    u64 left, right;
-    // value = left + right * 2^64
-
-    u128(u64 l, u64 r) {
-        left = l;
-        right = r;
-    }
-
-    // расширяет число
-    void reduction(u64 A[4]) const {
-        A[1] = left >> 32;
-        A[3] = right >> 32;
-
-        A[0] = left - (A[1] << 32);
-        A[2] = right - (A[3] << 32);
-    }
-
-    // naive multip
-    u128 naiveMul(const u128& x, const u128& y) const {
-        u64 result[] = { 0, 0, 0, 0 };
-        static u64 mult1[4], mult2[4];
-
-        x.reduction(mult1);
-        y.reduction(mult2);
-
-        u64 c, k;
-        int i, j, ij;
-        for (i = 0; i < 4; i++) {
-            c = 0;
-            ij = i; // (i + j) % 4
-            for (j = 0; j < 4 || c != 0; j++) {
-                k = result[ij] + mult1[i] * mult2[j] + c;
-                c = k >> 32;
-                result[ij] = k - (c << 32);
-
-                ij = ij == 3 ? 0 : ij + 1;
-            }
-        }
-
-        return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
-    }
-
-public:
-    // 1e6 раз
-    // 20ms - constuctors 
-
-    u128() {
-        left = right = 0;
-    }
-    u128(u64 value) {
-        left = value;
-        right = 0;
-    }
-
-    // 1e6 раз
-    // 15-20ms - bool operators
-
-    bool operator == (const u128& Rhs) const {
-        return left == Rhs.left && right == Rhs.right;
-    }
-    bool operator != (const u128& Rhs) const {
-        return left != Rhs.left || right != Rhs.right;
-    }
-    bool operator <  (const u128& Rhs) const {
-        return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
-    }
-    bool operator >  (const u128& Rhs) const {
-        return right == Rhs.right ? left > Rhs.left : right > Rhs.right;
-    }
-
-    bool operator <= (const u128& Rhs) const {
-        return right == Rhs.right ? left <= Rhs.left : right <= Rhs.right; // !(*this > Rhs)
-    }
-    bool operator >= (const u128& Rhs) const {
-        return right == Rhs.right ? left >= Rhs.left : right >= Rhs.right; //!(*this < Rhs)
-    }
-
-    // 1e6 раз 15-20ms
-    u128& operator ++ () {
-        left++;
-        if (left == 0) { // overflow
-            right++;
-        }
-        return *this;
-    }
-    // 1e6 раз 60ms
-    u128  operator ++ (int) {
-        u128 temp = *this;
-        this->operator++();
-        return temp;
-    }
-
-    // 1e6 раз 15-20ms
-    u128& operator -- () {
-        if (left == 0) { // overflow
-            right--;
-        }
-        left--;
-        return *this;
-    }
-    // 1e6 раз 60ms
-    u128  operator -- (int) {
-        u128 temp = *this;
-        this->operator--();
-        return temp;
-    }
-
-    // 1e6 раз 60ms
-    u128 operator + (const u128& add) const {
-        u128 result(left + add.left, right + add.right);
-        // если сумма получилась меньше максимума
-        if (result.left < std::max(left, add.left)) { // overflow
-            result.right++;
-        }
-        return result;
-    }
-    // 1e6 раз 50ms
-    u128 operator - (const u128& sub) const {
-        u128 result(left - sub.left, right - sub.right);
-        // если уменьшаемое меньше вычитаемого
-        if (left < result.left) { // overflow
-            result.right--;
-        }
-        return result;
-    }
-    // 1e6 раз 160ms
-    u128 operator * (const u128& mult) const {
-        return naiveMul(*this, mult);
-    }
-
-    u128& operator += (const u128& add) {
-        return *this = *this + add;
-    }
-    u128& operator -= (const u128& sub) {
-        return *this = *this - sub;
-    }
-    u128& operator *= (const u128& mult) {
-        return *this = *this * mult;
-    }
-
-    // 1e6 раз
-    // 30ms - bits operators
-
-    u128 operator & (const u128& k) const {
-        return u128(left & k.left, right & k.right);
-    }
-    u128 operator | (const u128& k) const {
-        return u128(left | k.left, right | k.right);
-    }
-    u128 operator ^ (const u128& k) const {
-        return u128(left ^ k.left, right ^ k.right);
-    }
-    u128 operator ~ () const {
-        return u128(~left, ~right);
-    }
-
-    u128& operator &= (const u128& k) {
-        return *this = *this & k;
-    }
-    u128& operator |= (const u128& k) {
-        return *this = *this | k;
-    }
-    u128& operator ^= (const u128& k) {
-        return *this = *this ^ k;
-    }
-
-    // 1e6 раз 2200ms
-    u128 operator << (u64 bits) const {
-        return *this * alg::nmb::epow(u128(2), bits);
-    }
-
-    u128& operator <<= (u64 bits) {
-        return *this = *this << bits;
-    }
-
-    template<typename T>
-    explicit operator T() const {
-        return (static_cast<T>(right) * "18446744073709551616") + left;
-    }
-
-    friend std::istream& operator >> (std::istream& input, u128& value);
-};
-
-// 0.6ms
-std::istream& operator >> (std::istream& input, u128& value) {
-    emt::elong Long;
-    input >> Long;
-    auto var = Long.div("18446744073709551616");
-    value = u128(var.second.operator size_t(), var.first.operator size_t());
-    return input;
-}
-// 2ms
-std::ostream& operator << (std::ostream& output, const u128& value) {
-    return output << (value.operator emt::elong());
-}
-
 int main() {
-    //ifstream cin("input.txt");
+    ifstream cin("input.txt");
 
-    u128 a, b;
-    cin >> a >> b;
-
-    cout << a * b;
-
+    
     return 0;
 }
