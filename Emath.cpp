@@ -3677,7 +3677,7 @@ namespace emt {
     }
 }
 
-// Variables
+// Variables: var, u128
 namespace var {
 
     class var {
@@ -3746,7 +3746,7 @@ namespace var {
     const static emt::elong mod64 = "18446744073709551616";
 
     // unsigned int128 beta
-    // (1 << 128) = 340282366920938463463374607431768211456
+    // (1 << 128) = 3402823669209384634633;74607431768211456
     class u128 {
         typedef unsigned long long u64;
 
@@ -3781,7 +3781,7 @@ namespace var {
                 c = 0;
                 ij = i; // (i + j) % 4
                 for (j = 0; j < 4 || c != 0; j++) {
-                    k = result[ij] + mult1[i] * mult2[j] + c;
+                    k = result[ij] + (j < 4 ? mult1[i] * mult2[j] : 0) + c;
                     c = k >> 32;
                     result[ij] = k - (c << 32);
 
@@ -3790,6 +3790,12 @@ namespace var {
             }
 
             return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
+        }
+
+        // возвращает (1 << (bits % 128))
+        u128 get2(size_t bits) const {
+            bits = bits - ((bits >> 7) << 7); // bits % 128
+            return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
         }
 
     public:
@@ -3880,6 +3886,52 @@ namespace var {
             return naiveMul(*this, mult);
         }
 
+        // 0.003ms - средний случай 
+        // 0.6ms - худший случай
+        // return (a / b, a % b)
+        std::pair<u128, u128> division(u128 divValue, u128 divider) const {
+            u128 result, temp;
+            std::vector<u128> Divs; // max 128 el
+
+            if (divValue >= divider) {
+                // max 128 ветков
+                while (divValue >= divider) {
+                    divValue -= divider;
+
+                    Divs.push_back(divider);
+
+                    temp = divider + divider;
+                    // если overflow
+                    if (temp <= divider) {
+                        break;
+                    }
+                    else {
+                        divider = temp;
+                    }
+                }
+                result = get2(Divs.size()) - 1;
+            }
+            else {
+                result = 0;
+            }
+            
+            // раскрутка
+            for (int i = Divs.size() - 1; i >= 0; i--) {
+                if (divValue >= Divs[i]) {
+                    divValue -= Divs[i];
+                    result += get2(i);
+                }
+            }
+            return std::make_pair(result, divValue);
+        }
+
+        u128 operator / (const u128& div) const {
+            return division(*this, div).first;
+        }
+        u128 operator % (const u128& div) const {
+            return division(*this, div).second;
+        }
+
         u128& operator += (const u128& add) {
             return *this = *this + add;
         }
@@ -3889,6 +3941,13 @@ namespace var {
         u128& operator *= (const u128& mult) {
             return *this = *this * mult;
         }
+        u128& operator /= (const u128& div) {
+            return *this = *this / div;
+        }
+        u128& operator %= (const u128& div) {
+            return *this = *this % div;
+        }
+
 
         // 1e6 раз
         // 30ms - bits operators
@@ -3916,13 +3975,31 @@ namespace var {
             return *this = *this ^ k;
         }
 
-        // 1e6 раз 2200ms
+        // 1e6 раз 200ms
         u128 operator << (u64 bits) const {
-            return *this * alg::nmb::epow(u128(2), bits);
+            return *this * get2(bits);
+        }
+        u128 operator >> (u64 bits) const {
+            return *this / get2(bits);
         }
 
         u128& operator <<= (u64 bits) {
             return *this = *this << bits;
+        }
+        u128& operator >>= (u64 bits) {
+            return *this = *this >> bits;
+        }
+
+        u64 getLeft() const {
+            return left;
+        }
+        u64 getRight() const {
+            return right;
+        }
+
+        // меняет местами left и right
+        u128 reverse() const {
+            return u128(right, left);
         }
 
         template<typename T>
@@ -3933,14 +4010,17 @@ namespace var {
             return (static_cast<emt::elong>(right) * mod64) + left;
         }
 
-        friend std::istream& operator >> (std::istream& input, u128& value);
+        friend u128 castU128(const emt::elong& value);
     };
+    u128 castU128(const emt::elong& value) {
+        auto var = value.div(mod64);
+        return u128(var.second.operator size_t(), var.first.operator size_t());
+    }
     // 0.4ms
     std::istream& operator >> (std::istream& input, u128& value) {
         emt::elong Long;
         input >> Long;
-        auto var = Long.div(mod64);
-        value = u128(var.second.operator size_t(), var.first.operator size_t());
+        value = castU128(Long);
         return input;
     }
     // 1ms
@@ -4091,8 +4171,11 @@ void operator delete[](void* ptr) {
 #include<bits/stdc++.h>
 using namespace std;
 
+
+using namespace var;
+
 int main() {
-    ifstream cin("input.txt");
+    //ifstream cin("input.txt");
 
     
     return 0;
