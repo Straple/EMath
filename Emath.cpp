@@ -3745,8 +3745,7 @@ namespace var {
 
     const static emt::elong mod64 = "18446744073709551616";
 
-    // unsigned int128 beta
-    // (1 << 128) = 3402823669209384634633;74607431768211456
+    // unsigned int128. alpha version
     class u128 {
         typedef unsigned long long u64;
 
@@ -3792,12 +3791,6 @@ namespace var {
             return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
         }
 
-        // возвращает (1 << (bits % 128))
-        u128 get2(size_t bits) const {
-            bits = bits - ((bits >> 7) << 7); // bits % 128
-            return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
-        }
-
     public:
         // 1e6 раз
         // 20ms - constuctors 
@@ -3805,9 +3798,22 @@ namespace var {
         u128() {
             left = right = 0;
         }
-        u128(u64 value) {
+        // Подходят все встроенные типы чисел
+        template<typename T>
+        u128(const T& value) {
             left = value;
-            right = 0;
+            right = value < 0 ? -1 : 0;
+        }
+        u128(const emt::elong& value) {
+            auto var = value.div(mod64);
+            left = var.second.operator size_t();
+            right = var.first.operator size_t();
+        }
+
+        // возвращает (1 << (bits % 128))
+        u128 getDegree2(size_t bits) const {
+            bits = bits - ((bits >> 7) << 7); // bits % 128
+            return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
         }
 
         // 1e6 раз
@@ -3909,7 +3915,7 @@ namespace var {
                         divider = temp;
                     }
                 }
-                result = get2(Divs.size()) - 1;
+                result = getDegree2(Divs.size()) - 1;
             }
             else {
                 result = 0;
@@ -3919,7 +3925,7 @@ namespace var {
             for (int i = Divs.size() - 1; i >= 0; i--) {
                 if (divValue >= Divs[i]) {
                     divValue -= Divs[i];
-                    result += get2(i);
+                    result += getDegree2(i);
                 }
             }
             return std::make_pair(result, divValue);
@@ -3977,10 +3983,10 @@ namespace var {
 
         // 1e6 раз 200ms
         u128 operator << (u64 bits) const {
-            return *this * get2(bits);
+            return *this * getDegree2(bits);
         }
         u128 operator >> (u64 bits) const {
-            return *this / get2(bits);
+            return *this / getDegree2(bits);
         }
 
         u128& operator <<= (u64 bits) {
@@ -4009,18 +4015,12 @@ namespace var {
         explicit operator emt::elong() const {
             return (static_cast<emt::elong>(right) * mod64) + left;
         }
-
-        friend u128 castU128(const emt::elong& value);
     };
-    u128 castU128(const emt::elong& value) {
-        auto var = value.div(mod64);
-        return u128(var.second.operator size_t(), var.first.operator size_t());
-    }
     // 0.4ms
     std::istream& operator >> (std::istream& input, u128& value) {
         emt::elong Long;
         input >> Long;
-        value = castU128(Long);
+        value = u128(Long);
         return input;
     }
     // 1ms
@@ -4168,15 +4168,15 @@ void operator delete[](void* ptr) {
 }
 #endif
 
+
+
 #include<bits/stdc++.h>
 using namespace std;
-
-
 using namespace var;
 
 int main() {
     //ifstream cin("input.txt");
-
+    
     
     return 0;
 }
