@@ -13,6 +13,7 @@
 #include<deque>
 #include<chrono>
 #include<fstream>
+#include<bitset>
 
 //std::ofstream debugLog("debug.txt");
 
@@ -3809,8 +3810,13 @@ namespace var {
             left = var.second.operator size_t();
             right = var.first.operator size_t();
         }
+        u128(const std::bitset<128> bits) {
+            left = bits._Getword(0);
+            right = bits._Getword(1);
+        }
 
         // возвращает (1 << (bits % 128))
+        // O(1)
         u128 getDegree2(size_t bits) const {
             bits = bits - ((bits >> 7) << 7); // bits % 128
             return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
@@ -3981,19 +3987,45 @@ namespace var {
             return *this = *this ^ k;
         }
 
-        // 1e6 раз 200ms
-        u128 operator << (u64 bits) const {
-            return *this * getDegree2(bits);
-        }
-        u128 operator >> (u64 bits) const {
-            return *this / getDegree2(bits);
-        }
+        // 1e6 раз 60ms
+
+        // bits = [0, 127]
+        // если биты вылезут за пределы, то они потеряются
 
         u128& operator <<= (u64 bits) {
-            return *this = *this << bits;
+            // bits / 64 == 1
+            if ((bits >> 6) == 1) {
+                // сдвинуть на 64 битов
+                right = left;
+                left = 0;
+            }
+            // (bits %= 64) != 0
+            if ((bits = bits - ((bits >> 6) << 6)) != 0) {
+                right = (right << bits) | (left >> (64 - bits));
+                left <<= bits;
+            }
+            return *this;
         }
         u128& operator >>= (u64 bits) {
-            return *this = *this >> bits;
+            // bits / 64 == 1
+            if (bits >> 6 == 1) {
+                left = right;
+                right = 0;
+            }
+
+            // (bits %= 64) != 0
+            if ((bits = bits - ((bits >> 6) << 6)) != 0) {
+                left = (left >> bits) | (right << (64 - bits));
+                right >>= bits;
+            }
+            return *this;
+        }
+        
+        u128 operator << (u64 bits) const {
+            return u128(*this) <<= bits;
+        }
+        u128 operator >> (u64 bits) const {
+            return u128(*this) >>= bits;
         }
 
         u64 getLeft() const {
@@ -4177,6 +4209,8 @@ using namespace var;
 int main() {
     //ifstream cin("input.txt");
     
+    
+   
     
     return 0;
 }
