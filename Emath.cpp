@@ -19,6 +19,14 @@
 
 // Utils: eclock, random, vector addition, clamp, range, roundTwo
 namespace utl {
+    using s8 = char;
+    using u8 = unsigned char;
+    using s16 = short;
+    using u16 = unsigned short;
+    using s32 = int;
+    using u32 = unsigned int;
+    using s64 = long long;
+    using u64 = unsigned long long;
 
     class eclock {
         typedef std::chrono::steady_clock::time_point timePoint;
@@ -105,189 +113,61 @@ namespace utl {
 }
 using namespace utl;
 
-// Data Structures: bits, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
+// Data Structures: trie, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
 namespace dst {
 
-    // vetor<bool>
-    class bits {
-        typedef unsigned long long u64;
-
-        u64* A; // массив
-        int length; // длина массива A
-        int deltaLength;
-
-        // обнуляет структуру
-        void zeroing() {
-            A = 0;
-            length = deltaLength = 0;
-        }
-
-        // новый размер массива
-        void resize_memoryisClear(const int newSize, const bool fillValue) {
-            length = newSize >> 6;
-            length += newSize - (length << 6) > 0;
-            deltaLength = (length << 6) - newSize;
-
-            A = new u64[length];
-
-            u64 fill = fillValue ? ~0 : 0;
-            for (int i = 0; i < length; i++) {
-                A[i] = fill;
+    // шаблон бора
+    template<typename T>
+    struct trie {
+        struct node;
+        using pnode = node*;
+        struct node {
+            node Next[26];
+            T value;
+            node() {
+                for (int i = 0; i < 26; i++) {
+                    Next[i] = 0;
+                }
+                value = T();
             }
-        }
 
-        // копирует структуру
-        void copy_memoryisClear(const bits& source) {
-            A = new u64[length = source.length];
-            deltaLength = source.deltaLength;
-
-            for (int i = 0; i < length; i++) {
-                A[i] = source.A[i];
+            // лист?
+            bool isLeaf() const {
+                int i;
+                // пока не вышли за пределы и следующего нет
+                for (i = 0; i < 26 && Next[i] == 0; i++) {}
+                return i == 26;
             }
-        }
+        };
 
-        // пересоздает массив с размером size
-        void arrayCopy(const int size) {
-            u64* temp = new u64[size];
-            for (int i = 0; i < std::min(size, length); i++) {
-                temp[i] = A[i];
+        pnode root = new node();
+
+#define next()\
+temp->Next[str[k] - 'a']
+
+        
+        // пробегает по бору добавляя нужные узлы
+        pnode find(const std::string& str) {
+            pnode temp = root;
+            int k = 0;
+            while (k < str.size() && next() != 0) {
+                temp = next();
+                k++;
             }
-            delete[] A;
-            A = temp;
-        }
-
-        // перестраивает массив увеличивая размер на 64
-        void rebuild() {
-            arrayCopy(length + 1);
-            length++;
-            deltaLength = 64;
-        }
-
-        // обновление переполнения. push_back
-        void updateOverflow() {
-            if (deltaLength == 0) { // overflow
-                rebuild();
+            while (k < str.size()) {
+                temp = next() = new node();
+                k++;
             }
+            return temp;
         }
 
-        void updateUnderflow() {
-            if (deltaLength == 192) { // underflow
-                arrayCopy(length - 2);
-                length -= 2;
-                deltaLength = 64;
-            }
+        // добавляет строку и значение
+        void insert(const std::string& str, const T& value) {
+            find(str)->value = value;
         }
 
-        // move structor
-        void move(bits& source) {
-            // копируем обьекты
-            A = source.A;
-            length = source.length;
-            deltaLength = source.deltaLength;
-            // выполняем обнуление для source
-            source.zeroing();
-        }
-
-    public:
-
-        // default constructor
-        bits() {
-            zeroing();
-        }
-        // copy constructor
-        bits(const bits& source) {
-            copy_memoryisClear(source);
-        }
-        // move constructor
-        bits(bits&& source) noexcept {
-            move(source);
-        }
-        // destructor
-        ~bits() {
-            delete[] A;
-        }
-
-        // A != source.A для operator =
-        // если ссылки массивов не равны:
-        // 1) A = source.A = 0
-        // 2) source = this
-
-        bits& operator = (const bits& source) {
-            if (A != source.A) {
-                delete[] A;
-                copy_memoryisClear(source);
-            }
-            return *this;
-        }
-        bits&& operator = (bits&& source) noexcept {
-            if (A != source.A) {
-                delete[] A;
-                move(source);
-            }
-            return std::move(*this);
-        }
-
-        // конструктор заполнения/выделения
-        bits(int newSize, bool fillValue = false) {
-            resize_memoryisClear(newSize, fillValue);
-        }
-
-        // очищает и обнуляет структуру
-        void clear() {
-            delete[] A;
-            zeroing();
-        }
-
-        // удаляет старый массив и создает новый
-        void resize(int newSize, bool fillValue = false) {
-            delete[] A;
-            resize_memoryisClear(newSize, fillValue);
-        }
-
-        // возвращает элемент в массиве. Его нельзя изменить
-        bool operator [](u64 index) const {
-            return A[index >> 6] & (static_cast<u64>(1) << (index - ((index >> 6) << 6)));
-        }
-
-        // Array[index] = value
-        void set(u64 index, bool value) {
-            u64& word = A[index >> 6];
-            u64 bit = static_cast<u64>(1) << (index - ((index >> 6) << 6));
-            word = value ? word | bit : word & ~bit;
-        }
-
-        int size() const {
-            return (length << 6) - deltaLength;
-        }
-        bool empty() const {
-            return size() == 0;
-        }
-
-        // переворачивает биты всего массива
-        void flip() {
-            for (int i = 0; i < length; i++) {
-                A[i] = ~A[i];
-            }
-        }
-
-        // переворачивает бит
-        void flip(u64 index) {
-            A[index >> 6] ^= static_cast<u64>(1) << (index - ((index >> 6) << 6));
-        }
-
-        // возвращает слово
-        u64 getWord(int wordIndex) const {
-            return A[wordIndex];
-        }
-
-        void push_back(bool value) {
-            updateOverflow();
-            set(size(), value);
-            deltaLength--;
-        }
-        void pop_back() {
-            updateUnderflow();
-            deltaLength++;
+        T& operator [](const std::string& str) {
+            return find(str)->value;
         }
     };
 
@@ -1330,33 +1210,6 @@ namespace dst {
         }
         T& operator [](int index) {
             return find(root, index)->value;
-        }
-
-        void pop_back() {
-            erase(size() - 1);
-        }
-        void pop_front() {
-            erase(0);
-        }
-
-        const T& back() const {
-            return find(root, size() - 1)->value;
-        }
-        const T& front() const {
-            return find(root, 0)->value;
-        }
-        T& back() {
-            return find(root, size() - 1)->value;
-        }
-        T& front() {
-            return find(root, 0)->value;
-        }
-
-        void push_back(const T& value) {
-            insert(value, size());
-        }
-        void push_front(const T& value) {
-            insert(value, 0);
         }
     };
 
@@ -3748,15 +3601,10 @@ namespace var {
 
     // unsigned int128. alpha version
     class u128 {
-        typedef unsigned long long u64;
 
         u64 left, right;
         // value = left + right * 2^64
 
-        u128(u64 l, u64 r) {
-            left = l;
-            right = r;
-        }
 
         // расширяет число
         void reduction(u64 A[4]) const {
@@ -3793,6 +3641,12 @@ namespace var {
         }
 
     public:
+
+        u128(u64 l, u64 r) {
+            left = l;
+            right = r;
+        }
+
         // 1e6 раз
         // 20ms - constuctors 
 
@@ -3810,15 +3664,10 @@ namespace var {
             left = var.second.operator size_t();
             right = var.first.operator size_t();
         }
-        u128(const std::bitset<128> bits) {
-            left = bits._Getword(0);
-            right = bits._Getword(1);
-        }
 
-        // возвращает (1 << (bits % 128))
+        // возвращает (1 << bits), где bits принадлежит [0, 127]
         // O(1)
         u128 getDegree2(size_t bits) const {
-            bits = bits - ((bits >> 7) << 7); // bits % 128
             return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
         }
 
@@ -3899,7 +3748,7 @@ namespace var {
         }
 
         // 0.003ms - средний случай 
-        // 0.6ms - худший случай
+        // 0.1ms - худший случай
         // return (a / b, a % b)
         std::pair<u128, u128> division(u128 divValue, u128 divider) const {
             u128 result, temp;
@@ -3921,7 +3770,7 @@ namespace var {
                         divider = temp;
                     }
                 }
-                result = getDegree2(Divs.size()) - 1;
+                result += getDegree2(Divs.size()) - 1;
             }
             else {
                 result = 0;
@@ -3945,10 +3794,22 @@ namespace var {
         }
 
         u128& operator += (const u128& add) {
-            return *this = *this + add;
+            u64 temp = std::max(left, add.left);
+            left += add.left;
+            right += add.right;
+            if (left < temp) { // overflow
+                right++;
+            }
+            return *this; // *this = *this + add;
         }
         u128& operator -= (const u128& sub) {
-            return *this = *this - sub;
+            if (left < left - sub.left) { // overflow
+                right--;
+            }
+            left -= sub.left;
+            right -= sub.right;
+
+            return *this;// *this = *this - sub;
         }
         u128& operator *= (const u128& mult) {
             return *this = *this * mult;
@@ -3978,13 +3839,19 @@ namespace var {
         }
 
         u128& operator &= (const u128& k) {
-            return *this = *this & k;
+            left &= k.left;
+            right &= k.right;
+            return *this;// *this = *this & k;
         }
         u128& operator |= (const u128& k) {
-            return *this = *this | k;
+            left |= k.left;
+            right |= k.right;
+            return *this;// *this = *this | k;
         }
         u128& operator ^= (const u128& k) {
-            return *this = *this ^ k;
+            left ^= k.left;
+            right ^= k.right;
+            return *this;// *this = *this ^ k;
         }
 
         // 1e6 раз 60ms
@@ -4209,8 +4076,6 @@ using namespace var;
 int main() {
     //ifstream cin("input.txt");
     
-    
-   
-    
+
     return 0;
 }
