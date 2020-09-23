@@ -19,6 +19,7 @@
 
 // Utils: eclock, random, vector addition, clamp, range, roundTwo
 namespace utl {
+
     using s8 = char;
     using u8 = unsigned char;
     using s16 = short;
@@ -27,6 +28,14 @@ namespace utl {
     using u32 = unsigned int;
     using s64 = long long;
     using u64 = unsigned long long;
+
+    // Макросы
+
+#define max(a, b) (a > b ? a : b)
+#define min(a, b) (a < b ? a : b)
+#define clamp(min, value, max) (value > max ? max : (value < min ? min : value))
+// остаток от деления на степень 2
+#define twoRemainder(value, degree) (value - ((value >> degree) << degree))
 
     class eclock {
         typedef std::chrono::steady_clock::time_point timePoint;
@@ -78,20 +87,6 @@ namespace utl {
     }
 
     template<typename T>
-    const T& clamp(const T& min, const T& value, const T& max) {
-        return value > max ? max :
-            value < min ? min :
-            value;
-    }
-
-    template<typename min_t, typename val_t, typename max_t>
-    const val_t& clamp(const min_t& min, const val_t& value, const max_t& max) {
-        return value > max ? static_cast<val_t>(max) :
-            value < min ? static_cast<val_t>(min) :
-            value;
-    }
-
-    template<typename T>
     T range(const T& left, const T& right) {
         static std::mt19937_64 random(42);
         return random() % (right - left + 1) + left;
@@ -116,19 +111,18 @@ using namespace utl;
 // Data Structures: trie, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
 namespace dst {
 
-    // шаблон бора
-    template<typename T>
+    // шаблон 
     struct trie {
         struct node;
         using pnode = node*;
         struct node {
-            node Next[26];
-            T value;
+            pnode Next[26];
+            bool isEnd;
             node() {
                 for (int i = 0; i < 26; i++) {
                     Next[i] = 0;
                 }
-                value = T();
+                isEnd = false;
             }
 
             // лист?
@@ -145,9 +139,21 @@ namespace dst {
 #define next()\
 temp->Next[str[k] - 'a']
 
-        
-        // пробегает по бору добавляя нужные узлы
+
+        // вернет 0 если такой строки нет
         pnode find(const std::string& str) {
+            pnode temp = root;
+            int k = 0;
+            while (k < str.size() && next() != 0) {
+                temp = next();
+                k++;
+            }
+            // если мы не дошли до конца строки: 0 иначе temp
+            return k < str.size() ? 0 : temp;
+        }
+
+        // добавляет строку и значение
+        void insert(const std::string& str) {
             pnode temp = root;
             int k = 0;
             while (k < str.size() && next() != 0) {
@@ -158,16 +164,7 @@ temp->Next[str[k] - 'a']
                 temp = next() = new node();
                 k++;
             }
-            return temp;
-        }
-
-        // добавляет строку и значение
-        void insert(const std::string& str, const T& value) {
-            find(str)->value = value;
-        }
-
-        T& operator [](const std::string& str) {
-            return find(str)->value;
+            temp->isEnd = true;
         }
     };
 
@@ -394,7 +391,7 @@ temp->Next[str[k] - 'a']
             // array copy
             {
                 T* temp = new T[sizeInc(newSize)];
-                int i = 0, Min = std::min(newSize, length);
+                int i = 0, Min = min(newSize, length);
                 while (i < Min) {
                     temp[i++] = std::move(A[head]);
                     head = inc(head);
@@ -700,8 +697,8 @@ temp->Next[str[k] - 'a']
             }
             else { // l < r
                 int tm = (tl + tr) / 2;
-                T left = get(v * 2, tl, tm, l, std::min(r, tm));
-                T right = get(v * 2 + 1, tm + 1, tr, std::max(l, tm + 1), r);
+                T left = get(v * 2, tl, tm, l, min(r, tm));
+                T right = get(v * 2 + 1, tm + 1, tr, max(l, tm + 1), r);
                 T res = calc(left, right);
                 return modify(res, Tree[v].add);
             }
@@ -1631,7 +1628,7 @@ namespace alg {
             // Находит все простые на отрезке [left, right]
             std::vector<int> blockSieve(long long left, long long right) {
                 long long sqrtN = sqrt(right);
-                long long s = std::max(sqrtN, static_cast<long long>(30));
+                long long s = max(sqrtN, static_cast<long long>(30));
                 std::vector<int> primes;
 
                 // просеивание до корня
@@ -1656,7 +1653,7 @@ namespace alg {
                     long long begin = k * s;
                     for (long long i = 0; i < primes.size(); ++i) {
                         long long beginIndex = (begin + primes[i] - 1) / primes[i];
-                        long long j = std::max(beginIndex, static_cast<long long>(2)) * primes[i] - begin;
+                        long long j = max(beginIndex, static_cast<long long>(2)) * primes[i] - begin;
                         for (; j < s; j += primes[i]) {
                             isPrime[j] = true;
                         }
@@ -2132,7 +2129,7 @@ namespace alg {
             std::vector<int> z(n);
             for (long long i = 1, l = 0, r = 0; i < n; i++) {
                 if (i <= r) {
-                    z[i] = std::min(r - i + 1, static_cast<long long>(z[i - l]));
+                    z[i] = min(r - i + 1, static_cast<long long>(z[i - l]));
                 }
                 while (i + z[i] < n && str[z[i]] == str[i + z[i]]) {
                     z[i]++;
@@ -2816,7 +2813,7 @@ namespace mpg {
             auto getRadius = [](const std::vector<dot>& Dots, const dot& point) {
                 float_type result = line(Dots[0], Dots[1]).dist(point);
                 for (int i = 2; i < Dots.size(); i++) {
-                    result = std::min(result, line(Dots[i - 1], Dots[i]).dist(point));
+                    result = min(result, line(Dots[i - 1], Dots[i]).dist(point));
                 }
                 return result;
             };
@@ -2834,8 +2831,8 @@ namespace mpg {
                     }
                     if (efloat(p1.x) <= x && efloat(x) <= p2.x) {
                         float_type y = p1.y + (x - p1.x) * (p2.y - p1.y) / (p2.x - p1.x);
-                        left = std::min(left, y);
-                        right = std::max(right, y);
+                        left = min(left, y);
+                        right = max(right, y);
                     }
                 }
 
@@ -2854,8 +2851,8 @@ namespace mpg {
 
             float_type left(poly.Dots[0].x), right(poly.Dots[0].x);
             for (int i = 1; i < poly.Dots.size(); i++) {
-                left = std::min(left, poly.Dots[i].x);
-                right = std::max(right, poly.Dots[i].x);
+                left = min(left, poly.Dots[i].x);
+                right = max(right, poly.Dots[i].x);
             }
 
             while (efloat(left) < right) {
@@ -2976,7 +2973,7 @@ namespace emt {
                 basicLong result = *this;
                 bool k = 0;
                 long long i = 0;
-                int len = std::max(result.digits.size(), added.digits.size());
+                int len = max(result.digits.size(), added.digits.size());
                 for (i = 0; i < len || k != 0; i++) {
                     if (i == result.digits.size()) {
                         result.digits.push_back(0);
@@ -3069,7 +3066,7 @@ namespace emt {
             }
 
             basicLong operator * (const basicLong& mult) const {
-                int k = std::max(this->digits.size(), mult.digits.size());
+                int k = max(this->digits.size(), mult.digits.size());
                 if (k <= 128) {
                     return naiveMul(*this, mult);
                 }
@@ -3531,71 +3528,8 @@ namespace emt {
     }
 }
 
-// Variables: var, u128
+// Variables: u128
 namespace var {
-
-    class var {
-        void* memory;
-
-        void copy_memoryIsClear(const var& source) {
-            int sizeofLen = sizeof(source.memory) >> 1;
-            memory = malloc(sizeofLen);
-            int i = 0;
-            while (i < sizeofLen) {
-                static_cast<char*>(memory)[i] = static_cast<char*>(source.memory)[i];
-                i++;
-            }
-        }
-
-        void move_memoryIsClear(var& source) {
-            memory = source.memory;
-            source.memory = 0;
-        }
-
-    public:
-        var() {
-            memory = 0;
-        }
-        ~var() {
-            delete[] memory;
-        }
-        var(const var& source) {
-            copy_memoryIsClear(source);
-        }
-        var(var&& source) noexcept {
-            move_memoryIsClear(source);
-        }
-
-        var& operator = (const var& source) {
-            if (memory != source.memory) {
-                delete[] memory;
-                copy_memoryIsClear(source);
-            }
-            return *this;
-        }
-        var&& operator = (var&& source) noexcept {
-            if (memory != source.memory) {
-                delete[] memory;
-                move_memoryIsClear(source);
-            }
-            return std::move(*this);
-        }
-
-        // convert constructor
-        template<typename T>
-        var(const T value) {
-            *static_cast<T*>(memory = new T) = value;
-        }
-
-        template<typename T>
-        T& cast() {
-            return *static_cast<T*>(memory);
-        }
-        template<typename T>
-        const T& constCast() const {
-            return *static_cast<T*>(memory);
-        }
-    };
 
     const static emt::elong mod64 = "18446744073709551616";
 
@@ -3606,30 +3540,36 @@ namespace var {
         // value = left + right * 2^64
 
 
-        // расширяет число
-        void reduction(u64 A[4]) const {
-            A[1] = left >> 32;
-            A[3] = right >> 32;
-
-            A[0] = left - (A[1] << 32);
-            A[2] = right - (A[3] << 32);
-        }
+#define reduction(value, A)\
+A[1] = value.left >> 32;\
+A[3] = value.right >> 32;\
+A[0] = value.left - (A[1] << 32);\
+A[2] = value.right - (A[3] << 32);
 
         // naive multip
         u128 naiveMul(const u128& x, const u128& y) const {
             u64 result[] = { 0, 0, 0, 0 };
             static u64 mult1[4], mult2[4];
 
-            x.reduction(mult1);
-            y.reduction(mult2);
+            reduction(x, mult1);
+            reduction(y, mult2);
+
+            int mult1Len = 4;
+            while (mult1Len > 0 && mult1[mult1Len - 1] == 0) {
+                mult1Len--;
+            }
+            int mult2Len = 4;
+            while (mult2Len > 0 && mult2[mult2Len - 1] == 0) {
+                mult2Len--;
+            }
 
             u64 c, k;
             int i, j, ij;
-            for (i = 0; i < 4; i++) {
+            for (i = 0; i < mult1Len; i++) {
                 c = 0;
                 ij = i; // (i + j) % 4
-                for (j = 0; j < 4 || c != 0; j++) {
-                    k = result[ij] + (j < 4 ? mult1[i] * mult2[j] : 0) + c;
+                for (j = 0; j < mult2Len || c != 0; j++) {
+                    k = result[ij] + (j < mult2Len ? mult1[i] * mult2[j] : 0) + c;
                     c = k >> 32;
                     result[ij] = k - (c << 32);
 
@@ -3671,78 +3611,99 @@ namespace var {
             return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
         }
 
-        // 1e6 раз
-        // 15-20ms - bool operators
+        // 20ms - bool operators
+
+// macros compare
+
+#define equally(Rhs) (left == Rhs.left && right == Rhs.right)
+#define less(Rhs) (right == Rhs.right ? left < Rhs.left : right < Rhs.right)
+#define more(Rhs) (right == Rhs.right ? left > Rhs.left : right > Rhs.right)
 
         bool operator == (const u128& Rhs) const {
-            return left == Rhs.left && right == Rhs.right;
+            return equally(Rhs);
         }
         bool operator != (const u128& Rhs) const {
-            return left != Rhs.left || right != Rhs.right;
+            return !equally(Rhs);
         }
         bool operator <  (const u128& Rhs) const {
-            return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
+            return less(Rhs);
         }
         bool operator >  (const u128& Rhs) const {
-            return right == Rhs.right ? left > Rhs.left : right > Rhs.right;
+            return more(Rhs);
         }
 
         bool operator <= (const u128& Rhs) const {
-            return right == Rhs.right ? left <= Rhs.left : right <= Rhs.right; // !(*this > Rhs)
+            return !more(Rhs);
         }
         bool operator >= (const u128& Rhs) const {
-            return right == Rhs.right ? left >= Rhs.left : right >= Rhs.right; //!(*this < Rhs)
+            return !less(Rhs);
         }
 
-        // 1e6 раз 15-20ms
+#define inc(value) \
+(value).left++;\
+if ((value).left == 0) { \
+    (value).right++;\
+}
+
+#define dec(value)\
+if ((value).left == 0) {\
+    (value).right--;\
+}\
+(value).left--;
+
+        // 20ms
         u128& operator ++ () {
-            left++;
-            if (left == 0) { // overflow
-                right++;
-            }
+            inc(*this);
             return *this;
         }
-        // 1e6 раз 60ms
+        // 40ms
         u128  operator ++ (int) {
             u128 temp = *this;
-            this->operator++();
+            inc(*this);
             return temp;
         }
 
-        // 1e6 раз 15-20ms
+        // 20ms
         u128& operator -- () {
-            if (left == 0) { // overflow
-                right--;
-            }
-            left--;
+            dec(*this);
             return *this;
         }
-        // 1e6 раз 60ms
+        // 40ms
         u128  operator -- (int) {
             u128 temp = *this;
-            this->operator--();
+            dec(*this);
             return temp;
         }
 
-        // 1e6 раз 60ms
+#define addition(value)\
+u64 temp = max((value).left, add.left);\
+(value).left += add.left;\
+(value).right += add.right;\
+if ((value).left < temp) {\
+    (value).right++;\
+}
+
+#define subtraction(value)\
+u64 temp = (value).left;\
+(value).left -= sub.left;\
+(value).right -= sub.right;\
+if (temp < (value).left) {\
+    (value).right--;\
+}
+
+        // 50-60ms
         u128 operator + (const u128& add) const {
-            u128 result(left + add.left, right + add.right);
-            // если сумма получилась меньше максимума
-            if (result.left < std::max(left, add.left)) { // overflow
-                result.right++;
-            }
+            u128 result = *this;
+            addition(result);
             return result;
         }
-        // 1e6 раз 50ms
+        // 40-50ms
         u128 operator - (const u128& sub) const {
-            u128 result(left - sub.left, right - sub.right);
-            // если уменьшаемое меньше вычитаемого
-            if (left < result.left) { // overflow
-                result.right--;
-            }
+            u128 result = *this;
+            subtraction(result);
             return result;
         }
-        // 1e6 раз 160ms
+        // 90-200ms
         u128 operator * (const u128& mult) const {
             return naiveMul(*this, mult);
         }
@@ -3792,24 +3753,16 @@ namespace var {
         u128 operator % (const u128& div) const {
             return division(*this, div).second;
         }
-
+        
+        // 20ms
         u128& operator += (const u128& add) {
-            u64 temp = std::max(left, add.left);
-            left += add.left;
-            right += add.right;
-            if (left < temp) { // overflow
-                right++;
-            }
-            return *this; // *this = *this + add;
+            addition(*this);
+            return *this;
         }
+        // 20ms
         u128& operator -= (const u128& sub) {
-            if (left < left - sub.left) { // overflow
-                right--;
-            }
-            left -= sub.left;
-            right -= sub.right;
-
-            return *this;// *this = *this - sub;
+            subtraction(*this);
+            return *this;
         }
         u128& operator *= (const u128& mult) {
             return *this = *this * mult;
@@ -3825,39 +3778,60 @@ namespace var {
         // 1e6 раз
         // 30ms - bits operators
 
+#define bitAnd(value)\
+(value).left &= k.left;\
+(value).right &= k.right;
+
+#define bitOr(value)\
+(value).left |= k.left;\
+(value).right |= k.right;
+
+#define bitXor(value)\
+(value).left ^= k.left;\
+(value).right ^= k.right;
+
+        // 60ms
+
         u128 operator & (const u128& k) const {
-            return u128(left & k.left, right & k.right);
+            u128 result = *this;
+            bitAnd(result);
+            return result;
         }
         u128 operator | (const u128& k) const {
-            return u128(left | k.left, right | k.right);
+            u128 result = *this;
+            bitOr(result);
+            return result;
         }
         u128 operator ^ (const u128& k) const {
-            return u128(left ^ k.left, right ^ k.right);
+            u128 result = *this;
+            bitXor(result);
+            return result;
         }
         u128 operator ~ () const {
             return u128(~left, ~right);
         }
 
+        // 20ms
+
         u128& operator &= (const u128& k) {
-            left &= k.left;
-            right &= k.right;
-            return *this;// *this = *this & k;
+            bitAnd(*this);
+            return *this;
         }
         u128& operator |= (const u128& k) {
-            left |= k.left;
-            right |= k.right;
-            return *this;// *this = *this | k;
+            bitOr(*this);
+            return *this;
         }
         u128& operator ^= (const u128& k) {
-            left ^= k.left;
-            right ^= k.right;
+            bitXor(*this);
             return *this;// *this = *this ^ k;
         }
 
-        // 1e6 раз 60ms
+        
 
         // bits = [0, 127]
         // если биты вылезут за пределы, то они потеряются
+
+        // 20ms
 
         u128& operator <<= (u64 bits) {
             // bits / 64 == 1
@@ -3867,7 +3841,7 @@ namespace var {
                 left = 0;
             }
             // (bits %= 64) != 0
-            if ((bits = bits - ((bits >> 6) << 6)) != 0) {
+            if ((bits = twoRemainder(bits, 6)) != 0) {
                 right = (right << bits) | (left >> (64 - bits));
                 left <<= bits;
             }
@@ -3881,13 +3855,15 @@ namespace var {
             }
 
             // (bits %= 64) != 0
-            if ((bits = bits - ((bits >> 6) << 6)) != 0) {
+            if ((bits = twoRemainder(bits, 6)) != 0) {
                 left = (left >> bits) | (right << (64 - bits));
                 right >>= bits;
             }
             return *this;
         }
         
+        // 60ms
+
         u128 operator << (u64 bits) const {
             return u128(*this) <<= bits;
         }
@@ -4068,14 +4044,17 @@ void operator delete[](void* ptr) {
 #endif
 
 
-
 #include<bits/stdc++.h>
 using namespace std;
 using namespace var;
 
+
+
 int main() {
     //ifstream cin("input.txt");
     
+    
+
 
     return 0;
 }
