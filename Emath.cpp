@@ -33,6 +33,7 @@ namespace utl {
 
 #define max(a, b) (a > b ? a : b)
 #define min(a, b) (a < b ? a : b)
+// возвращает значение между left и right
 #define clamp(min, value, max) (value > max ? max : (value < min ? min : value))
 // остаток от деления на степень 2
 #define twoRemainder(value, degree) (value - ((value >> degree) << degree))
@@ -3536,23 +3537,22 @@ namespace var {
     // unsigned int128. alpha version
     class u128 {
 
-        u64 left, right;
         // value = left + right * 2^64
+        u64 left, right;
 
-
-#define reduction(value, A)\
-A[1] = value.left >> 32;\
-A[3] = value.right >> 32;\
-A[0] = value.left - (A[1] << 32);\
-A[2] = value.right - (A[3] << 32);
-
+        void reduction(u64 A[4]) const {
+            A[1] = left >> 32; 
+            A[3] = right >> 32; 
+            A[0] = left - (A[1] << 32); 
+            A[2] = right - (A[3] << 32);
+        }
         // naive multip
         u128 naiveMul(const u128& x, const u128& y) const {
             u64 result[] = { 0, 0, 0, 0 };
             static u64 mult1[4], mult2[4];
 
-            reduction(x, mult1);
-            reduction(y, mult2);
+            x.reduction(mult1);
+            y.reduction(mult2);
 
             int mult1Len = 4;
             while (mult1Len > 0 && mult1[mult1Len - 1] == 0) {
@@ -3585,10 +3585,7 @@ A[2] = value.right - (A[3] << 32);
         u128(u64 l, u64 r) {
             left = l;
             right = r;
-        }
-
-        // 1e6 раз
-        // 20ms - constuctors 
+        } 
 
         u128() {
             left = right = 0;
@@ -3606,104 +3603,73 @@ A[2] = value.right - (A[3] << 32);
         }
 
         // возвращает (1 << bits), где bits принадлежит [0, 127]
-        // O(1)
         u128 getDegree2(size_t bits) const {
             return (bits < 64 ? u128(static_cast<u64>(1) << bits, 0) : u128(0, static_cast<u64>(1) << (bits - 64)));
         }
 
-        // 20ms - bool operators
-
-// macros compare
-
-#define equally(Rhs) (left == Rhs.left && right == Rhs.right)
-#define less(Rhs) (right == Rhs.right ? left < Rhs.left : right < Rhs.right)
-#define more(Rhs) (right == Rhs.right ? left > Rhs.left : right > Rhs.right)
 
         bool operator == (const u128& Rhs) const {
-            return equally(Rhs);
+            return left == Rhs.left && right == Rhs.right;
         }
         bool operator != (const u128& Rhs) const {
-            return !equally(Rhs);
+            return !(*this == Rhs);
         }
         bool operator <  (const u128& Rhs) const {
-            return less(Rhs);
+            return right == Rhs.right ? left < Rhs.left : right < Rhs.right;
         }
         bool operator >  (const u128& Rhs) const {
-            return more(Rhs);
+            return right == Rhs.right ? left > Rhs.left : right > Rhs.right;
         }
 
         bool operator <= (const u128& Rhs) const {
-            return !more(Rhs);
+            return !(*this > Rhs);
         }
         bool operator >= (const u128& Rhs) const {
-            return !less(Rhs);
+            return !(*this < Rhs);
         }
 
-#define inc(value) \
-(value).left++;\
-if ((value).left == 0) { \
-    (value).right++;\
-}
 
-#define dec(value)\
-if ((value).left == 0) {\
-    (value).right--;\
-}\
-(value).left--;
-
-        // 20ms
         u128& operator ++ () {
-            inc(*this);
+            left++;
+            if (left == 0) {
+                right++;
+            }
             return *this;
         }
-        // 40ms
         u128  operator ++ (int) {
             u128 temp = *this;
-            inc(*this);
+            ++(*this);
             return temp;
         }
 
-        // 20ms
         u128& operator -- () {
-            dec(*this);
+            if (left == 0) {
+                right--;
+            }
+            left--;
             return *this;
         }
-        // 40ms
         u128  operator -- (int) {
             u128 temp = *this;
-            dec(*this);
+            --(*this);
             return temp;
         }
 
-#define addition(value)\
-u64 temp = max((value).left, add.left);\
-(value).left += add.left;\
-(value).right += add.right;\
-if ((value).left < temp) {\
-    (value).right++;\
-}
 
-#define subtraction(value)\
-u64 temp = (value).left;\
-(value).left -= sub.left;\
-(value).right -= sub.right;\
-if (temp < (value).left) {\
-    (value).right--;\
-}
-
-        // 50-60ms
         u128 operator + (const u128& add) const {
-            u128 result = *this;
-            addition(result);
+            u128 result(left + add.left, right + add.right);
+            if (left < max(left, add.left)) {
+                result.right++;
+            }
             return result;
         }
-        // 40-50ms
         u128 operator - (const u128& sub) const {
-            u128 result = *this;
-            subtraction(result);
+            u128 result(left - sub.left, right - sub.right);
+            if (left < result.left) {
+                result.right--;
+            }
             return result;
         }
-        // 90-200ms
         u128 operator * (const u128& mult) const {
             return naiveMul(*this, mult);
         }
@@ -3746,7 +3712,6 @@ if (temp < (value).left) {\
             }
             return std::make_pair(result, divValue);
         }
-
         u128 operator / (const u128& div) const {
             return division(*this, div).first;
         }
@@ -3754,15 +3719,12 @@ if (temp < (value).left) {\
             return division(*this, div).second;
         }
         
-        // 20ms
+
         u128& operator += (const u128& add) {
-            addition(*this);
-            return *this;
+            return *this = *this + add;
         }
-        // 20ms
         u128& operator -= (const u128& sub) {
-            subtraction(*this);
-            return *this;
+            return *this = *this - sub;
         }
         u128& operator *= (const u128& mult) {
             return *this = *this * mult;
@@ -3775,63 +3737,34 @@ if (temp < (value).left) {\
         }
 
 
-        // 1e6 раз
-        // 30ms - bits operators
-
-#define bitAnd(value)\
-(value).left &= k.left;\
-(value).right &= k.right;
-
-#define bitOr(value)\
-(value).left |= k.left;\
-(value).right |= k.right;
-
-#define bitXor(value)\
-(value).left ^= k.left;\
-(value).right ^= k.right;
-
-        // 60ms
-
         u128 operator & (const u128& k) const {
-            u128 result = *this;
-            bitAnd(result);
-            return result;
+            return u128(left & k.left, right & k.right);
         }
         u128 operator | (const u128& k) const {
-            u128 result = *this;
-            bitOr(result);
-            return result;
+            return u128(left | k.left, right | k.right);
         }
         u128 operator ^ (const u128& k) const {
-            u128 result = *this;
-            bitXor(result);
-            return result;
+            return u128(left ^ k.left, right ^ k.right);
         }
         u128 operator ~ () const {
             return u128(~left, ~right);
         }
 
-        // 20ms
 
         u128& operator &= (const u128& k) {
-            bitAnd(*this);
-            return *this;
+            return *this = *this & k;
         }
         u128& operator |= (const u128& k) {
-            bitOr(*this);
-            return *this;
+            return *this = *this | k;
         }
         u128& operator ^= (const u128& k) {
-            bitXor(*this);
-            return *this;// *this = *this ^ k;
+            return *this = *this ^ k;
         }
 
         
 
         // bits = [0, 127]
         // если биты вылезут за пределы, то они потеряются
-
-        // 20ms
 
         u128& operator <<= (u64 bits) {
             // bits / 64 == 1
@@ -3862,8 +3795,6 @@ if (temp < (value).left) {\
             return *this;
         }
         
-        // 60ms
-
         u128 operator << (u64 bits) const {
             return u128(*this) <<= bits;
         }
@@ -4049,12 +3980,9 @@ using namespace std;
 using namespace var;
 
 
-
 int main() {
-    //ifstream cin("input.txt");
-    
-    
+    ifstream cin("input.txt");
 
-
+    
     return 0;
 }
