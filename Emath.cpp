@@ -288,12 +288,12 @@ temp->Next[str[k] - 'a']
             }
             return *this;
         }
-        edeque&& operator = (edeque&& source) noexcept {
+        edeque& operator = (edeque&& source) noexcept {
             if (A != source.A) {
                 delete[] A;
                 move(source);
             }
-            return std::move(*this);
+            return *this;
         }
 
         // конструктор заполнения/выделения
@@ -642,6 +642,173 @@ temp->Next[str[k] - 'a']
         }
     };
 
+
+    /* matrix
+    *
+    *   col
+    * +-----+
+    * |#####| r
+    * |#####| o
+    * |#####| w
+    * +-----+
+    */
+    template<typename T>
+    class matrix {
+
+        T* A; // память
+        // обнуление
+        void zeroing() {
+            A = 0;
+            rowLen = colLen = 0;
+        }
+
+        void copy(const matrix& source) {
+            colLen = source.colLen;
+            rowLen = source.rowLen;
+            size_t n = colLen * rowLen;
+            A = new T[n];
+            for (int i = 0; i < n; i++) {
+                A[i] = source.A[i];
+            }
+        }
+        void move(matrix& source) {
+            A = source.A;
+            rowLen = source.rowLen;
+            colLen = source.colLen;
+
+            source.zeroing();
+        }
+    public:
+
+        size_t rowLen; // колво строк
+        size_t colLen; // колво столбцов
+
+        matrix() {
+            zeroing();
+        }
+        matrix(size_t rowLen, size_t colLen) {
+            this->colLen = colLen;
+            this->rowLen = rowLen;
+            size_t n = colLen * rowLen;
+            A = new T[n];
+            for (int i = 0; i < n; i++) {
+                A[i] = 0;
+            }
+        }
+        matrix(std::initializer_list<std::initializer_list<T>> lists) {
+            rowLen = lists.size();
+            colLen = (*lists.begin()).size();
+            A = new T[rowLen * colLen];
+            T* temp = A;
+            for (auto& it : lists) {
+                for (auto& jt : it) {
+                    *temp = jt;
+                    temp++;
+                }
+            }
+        }
+        matrix(const matrix& source) {
+            copy(source);
+        }
+        matrix(matrix&& source) noexcept {
+            move(source);
+        }
+        ~matrix() {
+            delete[] A;
+        }
+
+        void clear() {
+            delete[] A;
+            A = 0;
+            colLen = rowLen = 0;
+        }
+
+        matrix& operator = (const matrix& source) {
+            if (A != source.A) {
+                delete[] A;
+                copy(source);
+            }
+            return *this;
+        }
+        matrix& operator = (matrix&& source) noexcept {
+            if (A != source.A) {
+                delete[] A;
+                move(source);
+            }
+            return *this;
+        }
+
+        T* operator [](size_t row) const {
+            return A + row * colLen;
+        }
+
+        // O(n^3)
+        matrix operator * (const matrix& mult) const {
+            matrix c(rowLen, mult.colLen);
+
+            if (colLen != mult.rowLen) {
+                throw "error: bad matrix";
+            }
+            for (int i = 0; i < rowLen; i++) {
+                for (int j = 0; j < mult.colLen; j++) {
+                    for (int k = 0; k < mult.rowLen; k++) {
+                        c[i][j] += (*this)[i][k] * mult[k][j];
+                    }
+                }
+            }
+            return c;
+        }
+        // O(n^2)
+        matrix operator + (const matrix& add) const {
+            if (colLen != add.colLen || rowLen != add.rowLen) {
+                throw "error: matrix not equally";
+            }
+            matrix c(rowLen, colLen);
+            for (int i = 0; i < rowLen; i++) {
+                for (int j = 0; j < colLen; j++) {
+                    c[i][j] = (*this)[i][j] + add[i][j];
+                }
+            }
+            return c;
+        }
+        // O(n^2)
+        matrix operator - (const matrix& sub) const {
+            if (colLen != sub.colLen || rowLen != sub.rowLen) {
+                throw "error: matrix not equally";
+            }
+            matrix c(rowLen, colLen);
+            for (int i = 0; i < rowLen; i++) {
+                for (int j = 0; j < colLen; j++) {
+                    c[i][j] = (*this)[i][j] - sub[i][j];
+                }
+            }
+            return c;
+        }
+        // O(n^2)
+        matrix operator % (const T& mod) const {
+            matrix c = *this;
+            for (int i = 0; i < rowLen; i++) {
+                for (int j = 0; j < colLen; j++) {
+                    c[i][j] %= mod;
+                }
+            }
+            return c;
+        }
+
+        matrix& operator *= (const matrix& mult) {
+            return *this = *this * mult;
+        }
+        matrix& operator += (const matrix& add) {
+            return *this = *this + add;
+        }
+        matrix& operator -= (const matrix& sub) {
+            return *this = *this - sub;
+        }
+        matrix& operator %= (const T& mod) {
+            return *this = *this % mod;
+        }
+    };
+
     // взятие на отрезке и обновление на отрезке
     // modify - функция обновления на отрезке, calc - функция подсчета
     template<typename T, T(*modify)(T, T), T(*calc)(T, T)>
@@ -854,12 +1021,12 @@ temp->Next[str[k] - 'a']
             }
             return *this;
         }
-        hashTable&& operator = (hashTable&& source) {
+        hashTable& operator = (hashTable&& source) {
             if (A != source.A) {
                 delete[] A;
                 move(source);
             }
-            return std::move(*this);
+            return *this;
         }
 
         // конструктор выделения
@@ -1073,12 +1240,12 @@ temp->Next[str[k] - 'a']
             }
             return *this;
         }
-        container&& operator = (container&& source) noexcept {
+        container& operator = (container&& source) noexcept {
             if (root != source.root) {
                 clear();
                 move(source);
             }
-            return std::move(*this);
+            return *this;
         }
 
         // fill constructor. O(n * log n)
@@ -1465,12 +1632,12 @@ temp->Next[str[k] - 'a']
             }
             return *this;
         }
-        pairingHeap&& operator = (pairingHeap&& source) {
+        pairingHeap& operator = (pairingHeap&& source) {
             if (root != source.root) {
                 clear();
                 move(source);
             }
-            return std::move(*this);
+            return *this;
         }
 
         void clear() {
@@ -1838,66 +2005,39 @@ namespace alg {
         // Фибоначчи за log
         template<typename T>
         class fibonacci {
-
-            struct matrix {
-                std::vector<std::vector<T>> a;
-
-                matrix() {
-                    a = { {0, 1}, {1, 1} };
-                }
-                matrix(const matrix& other) {
-                    a = other.a;
-                }
-                matrix mult(const matrix& mult) const {
-                    matrix res;
-                    for (int i = 0; i < 2; i++) {
-                        for (int j = 0; j < 2; j++) {
-                            res.a[i][j] = a[i][0] * mult.a[0][j] + a[i][1] * mult.a[1][j];
-                        }
-                    }
-                    return res;
-                }
-                matrix mult(const matrix& mult, const T& mod) const {
-                    matrix res;
-                    for (int i = 0; i < 2; i++) {
-                        for (int j = 0; j < 2; j++) {
-                            res.a[i][j] = ((a[i][0] * mult.a[0][j]) % mod + (a[i][1] * mult.a[1][j] % mod)) % mod;
-                        }
-                    }
-                    return res;
-                }
-            };
-
-            matrix binPow(const matrix& a, const T& n) {
+            dst::matrix<T> binPow(const dst::matrix<T>& a, const T& n) {
                 if (n == 1) {
                     return a;
                 }
                 else {
-                    matrix z = binPow(a, n / 2);
-                    z = z.mult(z);
+                    auto z = binPow(a, n / 2);
+                    z *= z;
 
-                    return n % 2 == 0 ? z : z.mult(a);
+                    return n % 2 == 0 ? z : z * a;
                 }
             }
-            matrix binPow(const matrix& a, const T& n, const T& mod) {
+            dst::matrix<T> binPow(const dst::matrix<T>& a, const T& n, const T& mod) {
                 if (n == 1) {
                     return a;
                 }
                 else {
-                    matrix z = binPow(a, n / 2, mod);
-                    z = z.mult(z, mod);
+                    auto z = binPow(a, n / 2);
+                    z = (z * z) % mod;
 
-                    return n % 2 == 0 ? z : z.mult(a, mod);
+                    return n % 2 == 0 ? z : (z * a) % mod;
                 }
+            }
+
+            dst::matrix<T> getMatrix() const {
+                return { {0, 1} {1, 1} };
             }
 
         public:
-
             T get(const T& n) {
-                return binPow(matrix(), n).a[0][0];
+                return binPow(getMatrix(), n)[0][0];
             }
             T get(const T& n, const T& mod) {
-                return binPow(matrix(), n, mod).a[0][0];
+                return binPow(getMatrix(), n, mod)[0][0];
             }
         };
     }
