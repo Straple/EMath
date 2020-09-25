@@ -642,7 +642,6 @@ temp->Next[str[k] - 'a']
         }
     };
 
-
     /* matrix
     *
     *   col
@@ -656,6 +655,7 @@ temp->Next[str[k] - 'a']
     class matrix {
 
         T* A; // память
+
         // обнуление
         void zeroing() {
             A = 0;
@@ -2029,7 +2029,7 @@ namespace alg {
             }
 
             dst::matrix<T> getMatrix() const {
-                return { {0, 1} {1, 1} };
+                return { {0, 1}, {1, 1} };
             }
 
         public:
@@ -3050,12 +3050,13 @@ namespace emt {
 
     // signed long integer
     class elong {
-        // простое длинное число
+        // unsigned basic long
         struct basicLong {
-            dst::edeque<long long> digits;
+            dst::edeque<s64> digits; // цифры
 
-            basicLong(const dst::edeque<long long>& newDigits) {
-                digits = newDigits;
+            basicLong() {}
+            basicLong(const dst::edeque<s64>& digits) {
+                this->digits = digits;
             }
             basicLong(const std::string& str) {
                 int i;
@@ -3066,8 +3067,8 @@ namespace emt {
                     digits.push_back(atoll(str.substr(0, i).c_str()));
                 }
             }
-            basicLong() {}
 
+            // удаляет ведущие нули
             basicLong& remove_leading_zeros() {
                 while (!digits.empty() && digits.back() == 0) {
                     digits.pop_back();
@@ -3075,30 +3076,31 @@ namespace emt {
                 return *this;
             }
 
+        private:
             enum class OP {
                 less,
                 equally,
                 more,
             };
 
-            template<typename T>
-            OP comp(const T& a, const T& b) const {
-                return a < b ? OP::less : OP::more;
-            }
+#define compareValues(a, b) (a < b ? OP::less : OP::more)
 
-            // compare two numbers
+            // сравнивает 2 числа
             OP compare(const basicLong& Rhs) const {
+                // если у них разные длины
                 if (digits.size() != Rhs.digits.size()) {
-                    return comp(digits.size(), Rhs.digits.size());
+                    return compareValues(digits.size(), Rhs.digits.size());
                 }
                 else {
                     int i = digits.size() - 1;
                     while (i >= 0 && digits[i] == Rhs.digits[i]) {
                         i--;
                     }
-                    return i >= 0 ? comp(digits[i], Rhs.digits[i]) : OP::equally;
+                    return i >= 0 ? compareValues(digits[i], Rhs.digits[i]) : OP::equally;
                 }
             }
+
+        public:
 
             bool operator < (const basicLong& Rhs) const {
                 return compare(Rhs) == OP::less;
@@ -3110,11 +3112,12 @@ namespace emt {
                 return compare(Rhs) == OP::more;
             }
 
+            // операция сложения
             basicLong operator + (const basicLong& added) const {
                 basicLong result = *this;
                 bool k = 0;
-                long long i = 0;
-                int len = max(result.digits.size(), added.digits.size());
+                s64 i = 0;
+                s64 len = max(result.digits.size(), added.digits.size());
                 for (i = 0; i < len || k != 0; i++) {
                     if (i == result.digits.size()) {
                         result.digits.push_back(0);
@@ -3126,9 +3129,9 @@ namespace emt {
                 return result;
             }
 
+            // операция вычитания
             basicLong operator - (const basicLong& subtrahend) const {
                 basicLong result = *this;
-
                 bool k = 0;
                 for (int i = 0; i < subtrahend.digits.size() || k != 0; i++) {
                     result.digits[i] -= k + (i < subtrahend.digits.size() ? subtrahend.digits[i] : 0);
@@ -3164,7 +3167,7 @@ namespace emt {
                 basicLong result, mult1 = a.expansion(), mult2 = b.expansion();
                 result.digits.resize(mult1.digits.size() + mult2.digits.size() + 1);
 
-                unsigned long long c, k;
+                u64 c, k;
                 int i, j;
                 for (i = 0; i < mult1.digits.size(); i++) {
                     c = 0;
@@ -3363,7 +3366,7 @@ namespace emt {
                 value.digits.front() = 0;
 
                 int i;
-                for (i = 1; i < value.digits.size() && value.digits[i] + 1LL == long_base; i++) {
+                for (i = 1; i < value.digits.size() && value.digits[i] + 1 == long_base; i++) {
                     value.digits[i] = 0;
                 }
                 if (i == value.digits.size()) {
@@ -4119,10 +4122,8 @@ void operator delete[](void* ptr) {
 using namespace std;
 using namespace var;
 
-
 int main() {
     ifstream cin("input.txt");
 
-    
     return 0;
 }
