@@ -3182,7 +3182,7 @@ namespace emt {
                 return result.reduction().remove_leading_zeros();
             }
 
-            // O(n ^ log_2 3)
+            // O(n ^ 1.54)
             basicLong KaratsubaMul(const basicLong& x, const basicLong& y, int n) const {
                 if (n <= 128) {
                     return naiveMul(x, y);
@@ -3697,29 +3697,17 @@ namespace var {
             x.reduction(mult1);
             y.reduction(mult2);
 
-            int mult1Len = 4;
-            while (mult1Len > 0 && mult1[mult1Len - 1] == 0) {
-                mult1Len--;
-            }
-            int mult2Len = 4;
-            while (mult2Len > 0 && mult2[mult2Len - 1] == 0) {
-                mult2Len--;
-            }
-
             u64 c, k;
-            int i, j, ij;
-            for (i = 0; i < mult1Len; i++) {
+            int i, j;
+            // 10 умножений
+            for (i = 0; i < 4; i++) {
                 c = 0;
-                ij = i; // (i + j) % 4
-                for (j = 0; j < mult2Len || c != 0; j++) {
-                    k = result[ij] + (j < mult2Len ? mult1[i] * mult2[j] : 0) + c;
+                for (j = 0; i + j < 4; j++) {
+                    k = result[i + j] + mult1[i] * mult2[j] + c;
                     c = k >> 32;
-                    result[ij] = k - (c << 32);
-
-                    ij = ij == 3 ? 0 : ij + 1;
+                    result[i + j] = k - (c << 32);
                 }
             }
-
             return u128(result[0] + (result[1] << 32), result[2] + (result[3] << 32));
         }
 
