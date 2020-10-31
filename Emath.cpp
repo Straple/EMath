@@ -2045,6 +2045,95 @@ namespace alg {
     // Graphs: dijkstra, mst, graphSets, graphCycles
     namespace gph {
 
+        class lca {
+            typedef vector<vector<s64>> graph;
+            vector<s64> H, dfsList, first, tree;
+
+            // dfs для инициализации LCA
+            void dfs(s64 v, s64 h, s64 prev, const graph& G) {
+                H[v] = h;
+                dfsList.push_back(v);
+                for (auto& to : G[v]) {
+                    if (to != prev) {
+                        dfs(to, h + 1, v, G);
+                        dfsList.push_back(v);
+                    }
+                }
+            }
+
+            // строит дерево для LCA
+            void buildTree(s64 v, s64 l, s64 r) {
+                if (l == r) {
+                    tree[v] = dfsList[l];
+                }
+                else {
+                    s64 m = (l + r) / 2;
+                    buildTree(v * 2, l, m);
+                    buildTree(v * 2 + 1, m + 1, r);
+                    tree[v] = H[tree[2 * v]] < H[tree[2 * v + 1]] ?
+                        tree[2 * v] : tree[2 * v + 1];
+                }
+            }
+
+            // строит LCA
+            void build(s64 root, const graph& G) {
+                s64 n = G.size();
+
+                H.resize(n);
+                dfsList.reserve(2 * n);
+
+                dfs(root, 0, -1, G);
+
+                s64 m = dfsList.size();
+                tree.assign(dfsList.size() * 4 + 1, -1);
+                buildTree(1, 0, m - 1);
+
+                first.assign(n, -1);
+                for (s64 i = 0; i < m; i++) {
+                    s64 v = dfsList[i];
+                    if (first[v] == -1) {
+                        first[v] = i;
+                    }
+                }
+            }
+
+            // взятие минимума для LCA
+            s64 treeMin(s64 v, s64 vl, s64 vr, s64 l, s64 r) {
+                if (vl == l && vr == r) {
+                    return tree[v];
+                }
+                else {
+                    s64 vm = (vl + vr) / 2;
+                    if (r <= vm) {
+                        return treeMin(2 * v, vl, vm, l, r);
+                    }
+                    else if (l > vm) {
+                        return treeMin(2 * v + 1, vm + 1, vr, l, r);
+                    }
+                    s64 cntL = treeMin(2 * v, vl, vm, l, vm);
+                    s64 cntR = treeMin(2 * v + 1, vm + 1, vr, vm + 1, r);
+                    return H[cntL] < H[cntR] ? cntL : cntR;
+                }
+            }
+
+        public:
+
+            // returns LCA(a, b)
+            s64 get(s64 a, s64 b) {
+                s64 left = first[a];
+                s64 right = first[b];
+                if (left > right) {
+                    swap(left, right);
+                }
+                return treeMin(1, 0, dfsList.size() - 1, left, right);
+            }
+
+            // build LCA
+            lca(s64 root, const graph& G) {
+                build(root, G);
+            }
+        };
+
         // Алгоритм Дейкстры
         template<typename dist_t>
         class dijkstra {
@@ -3223,6 +3312,7 @@ namespace emt {
                 }
             }
 
+            // ( /, % )
             std::pair<basicLong, basicLong> div(const basicLong& divider) const {
                 basicLong result, value, temp, t;
 
@@ -3557,15 +3647,16 @@ namespace emt {
         }
 
         elong operator % (const elong& divider) const {
-            return elong(std::move(value % divider.value), false).update();
+            return elong(std::move(value % divider.value), isNegative).update();
         }
         elong& operator %= (const elong& divider) {
             return *this = *this % divider;
         }
 
+        // ( /, % )
         std::pair<elong, elong> div(const elong& divider) const{
             auto p = std::move(value.div(divider.value));
-            return std::make_pair(elong(std::move(p.first), false).update(), elong(std::move(p.second), false).update());
+            return std::make_pair(elong(std::move(p.first), isNegative != divider.isNegative).update(), elong(std::move(p.second), isNegative).update());
         }
         // ]
 
@@ -3672,7 +3763,7 @@ namespace emt {
     }
 }
 
-// Variables: u128
+// Variables: u128, modVar
 namespace var {
 
     const static emt::elong mod64 = "18446744073709551616";
@@ -3717,7 +3808,6 @@ namespace var {
             left = l;
             right = r;
         } 
-
         u128() {
             left = right = 0;
         }
@@ -3952,6 +4042,8 @@ namespace var {
         explicit operator emt::elong() const {
             return (static_cast<emt::elong>(right) * mod64) + left;
         }
+
+        friend std::ostream& operator << (std::ostream& output, const u128& value);
     };
     // 0.4ms
     std::istream& operator >> (std::istream& input, u128& value) {
@@ -3960,10 +4052,100 @@ namespace var {
         value = u128(Long);
         return input;
     }
-    // 1ms
+    // 0.5 - 1.5ms
     std::ostream& operator << (std::ostream& output, const u128& value) {
-        return output << (value.operator emt::elong());
+        if (value.right == 0) {
+            output << value.left;
+        }
+        else {
+            output << (value.operator emt::elong());
+        }
+        return output;
     }
+
+
+    // value e [0, mod - 1]
+    template<s64 mod>
+    class modVar {
+
+        s64 inverse(s64 n) const {
+            s64 x, y;
+            s64 d = gcd(n, mod, x, y);
+            s64 inverse = (x % mod + mod) % mod;
+            return inverse;
+            //return epow(n, mod - 2);
+        }
+
+    public:
+
+        s64 value;
+        modVar() {
+            value = 0;
+        }
+        template<typename T>
+        modVar(const T& a) {
+            value = static_cast<T>(a);
+            value %= mod;
+            if (value < 0) {
+                value += mod;
+            }
+        }
+
+        modVar operator + (const modVar& add) const {
+            s64 res = value + add.value;
+            if (res >= mod) {
+                res -= mod;
+            }
+            return res;
+        }
+        modVar operator - (const modVar& sub) const {
+            s64 res = value - sub.value;
+            if (res < 0) {
+                res += mod;
+            }
+            return res;
+        }
+        modVar operator * (const modVar& mult) const {
+            return (value * mult.value) % mod;
+        }
+        modVar operator / (const modVar& div) const {
+            return (value * inverse(div.value)) % mod;
+        }
+
+        modVar& operator += (const modVar& add) {
+            return *this = *this + add;
+        }
+        modVar& operator -= (const modVar& sub) {
+            return *this = *this - div;
+        }
+        modVar& operator *= (const modVar& mult) {
+            return *this = *this * mult;
+        }
+        modVar& operator /= (const modVar& div) {
+            return *this = *this / div;
+        }
+
+        bool operator == (const modVar& Rhs) const {
+            return value == Rhs.value;
+        }
+        bool operator != (const modVar& Rhs) const {
+            return !(*this == Rhs);
+        }
+
+        bool operator < (const modVar& Rhs) const {
+            return value < Rhs.value;
+        }
+        bool operator > (const modVar& Rhs) const {
+            return value > Rhs.value;
+        }
+
+        bool operator <= (const modVar& Rhs) const {
+            return !(*this > Rhs.value);
+        }
+        bool operator >= (const modVar& Rhs) const {
+            return !(*this < Rhs.value);
+        }
+    };
 }
 
 // Memory Manager: poolAllocator
@@ -4110,8 +4292,20 @@ void operator delete[](void* ptr) {
 using namespace std;
 using namespace var;
 
+
+
 int main() {
     ifstream cin("input.txt");
 
+    u128 n(107, 298593), div(12, 0);
+
+    cout << n % div << "\n";
+    cout << n - (n / div) * div;
+
     return 0;
 }
+
+/*
+* 5508068653201156145676395
+* 5508013312968935017021571
+*/
