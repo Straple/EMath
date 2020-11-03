@@ -809,91 +809,165 @@ temp->Next[str[k] - 'a']
         }
     };
 
-    // взятие на отрезке и обновление на отрезке
-    // modify - функция обновления на отрезке, calc - функция подсчета
-    template<typename T, T(*modify)(T, T), T(*calc)(T, T)>
+    // Дерево отрезков
+    // взятия на отрезке и обновление элемента
+    // calc - функция подсчета
+    template<typename T, T(*calc)(T, T)>
     class segTree {
-        struct node {
-            T value, add;
-            node() {
-                add = value = T();
-            }
-            node(const T& value, const T& add) {
-                this->value = value;
-                this->add = add;
-            }
-        };
-        std::vector<node> Tree;
+        std::vector<T> tree;
         int length;
-        T nothing;
 
-        void build(int v, int tl, int tr, const std::vector<T>& A) {
+        void build(int v, int tl, int tr, std::vector<T>& A) {
             if (tl == tr) {
-                Tree[v] = node(A[tl], Tree[v].add);
+                tree[v] = A[tl];
             }
             else {
                 int tm = (tl + tr) / 2;
                 build(v * 2, tl, tm, A);
                 build(v * 2 + 1, tm + 1, tr, A);
-                Tree[v] = node(calc(Tree[v * 2].value, Tree[v * 2 + 1].value), Tree[v].add);
+                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]);
+            }
+        }
+
+        T get(int v, int tl, int tr, int l, int r) {
+            if (tl == l && tr == r) {
+                return tree[v];
+            }
+            else {
+                int tm = (tl + tr) / 2;
+                if (r <= tm) {
+                    return get(v * 2, tl, tm, l, r);
+                }
+                else if (l > tm) {
+                    return get(v * 2 + 1, tm + 1, tr, l, r);
+                }
+                return calc(get(2 * v, tl, tm, l, tm), get(2 * v + 1, tm + 1, tr, tm + 1, r));
+            }
+        }
+
+        void update(int v, int tl, int tr, int pos, T val) {
+            if (tl == tr) {
+                tree[v] = val;
+            }
+            else {
+                int tm = (tl + tr) / 2;
+                if (pos <= tm) {
+                    update(v * 2, tl, tm, pos, val);
+                }
+                else {
+                    update(v * 2 + 1, tm + 1, tr, pos, val);
+                }
+                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]);
+            }
+        }
+
+        void resize(int length) {
+            this->length = length;
+            tree.resize(4 * length);
+        }
+
+    public:
+        segTree() {}
+        segTree(int length) {
+            resize(length);
+        }
+        segTree(std::vector<T>& A) {
+            resize(A.size());
+            build(1, 0, A.size() - 1, A);
+        }
+
+        T get(int left, int right) {
+            return get(1, 0, length - 1, left, right);
+        }
+        void update(int pos, T value) {
+            update(1, 0, length - 1, pos, value);
+        }
+    };
+
+    // Дерево отрезков с несоглассованными поддеревьями
+    // взятие на отрезке и обновление на отрезке
+    // modify - функция обновления на отрезке, calc - функция подсчета
+    template<typename T, T(*modify)(T, T), T(*calc)(T, T)>
+    class segTreeM {
+        struct node {
+            T value, add;
+            node() {
+                add = value = T();
+            }
+            node(T value, T add) {
+                this->value = value;
+                this->add = add;
+            }
+        };
+
+        std::vector<node> tree;
+        int length;
+
+        void build(int v, int tl, int tr, const std::vector<T>& A) {
+            if (tl == tr) {
+                tree[v] = node(A[tl], tree[v].add);
+            }
+            else {
+                int tm = (tl + tr) / 2;
+                build(v * 2, tl, tm, A);
+                build(v * 2 + 1, tm + 1, tr, A);
+                tree[v] = node(calc(tree[v * 2].value, tree[v * 2 + 1].value), tree[v].add);
             }
         }
 
         // обновление на отрезке l...r value
-        void update(const int l, const int r, const T& value, int v, int tl, int tr) {
+        void update(int v, int tl, int tr, int l, int r, T& val) {
             if (tr < l || r < tl) {
                 // отрезок не подходит
             }
             else if (l <= tl && tr <= r) {
-                Tree[v] = node(modify(value, Tree[v].value), modify(value, Tree[v].add));
+                tree[v] = node(modify(val, tree[v].value), modify(val, tree[v].add));
             }
             else {
                 int tm = (tl + tr) / 2;
-                update(l, r, value, v * 2, tl, tm);
-                update(l, r, value, v * 2 + 1, tm + 1, tr);
-                Tree[v].value = modify(calc(Tree[v * 2].value, Tree[v * 2 + 1].value), Tree[v].add);
+                update(v * 2, tl, tm, l, r, val);
+                update(v * 2 + 1, tm + 1, tr, l, r, val);
+                tree[v].value = modify(calc(tree[v * 2].value, tree[v * 2 + 1].value), tree[v].add);
             }
         }
 
         // возвращает значение на отрезке
         T get(int v, int tl, int tr, int l, int r) {
-            if (l > r) {
-                return nothing;
-            }
-            else if (l == tl && r == tr) {
-                return Tree[v].value;
+            if (l == tl && r == tr) {
+                return tree[v].value;
             }
             else { // l < r
                 int tm = (tl + tr) / 2;
-                T left = get(v * 2, tl, tm, l, min(r, tm));
-                T right = get(v * 2 + 1, tm + 1, tr, max(l, tm + 1), r);
-                T res = calc(left, right);
-                return modify(res, Tree[v].add);
+                if (r <= tm) {
+                    return get(v * 2, tl, tm, l, r);
+                }
+                else if (l > tm) {
+                    return get(v * 2 + 1, tm + 1, tr, l, r);
+                }
+                T cntL = get(2 * v, tl, tm, l, tm);
+                T cntR = get(2 * v + 1, tm + 1, tr, tm + 1, r);
+
+                return modify(calc(cntL, cntR), tree[v].add);
             }
         }
 
     public:
 
-        segTree() {}
-        segTree(const T& nothing, int length, const T& fillValue) {
-            this->length = length;
-            this->nothing = nothing;
-            Tree.resize(length * 4);
-            for (int i = 0; i < length * 4; i++) {
-                Tree[i] = node(nothing, nothing);
-            }
-            std::vector<T> A(length, fillValue);
+        segTreeM() {}
+        segTreeM(std::vector<T>& A) {
+            length = A.size();
+            tree.resize(length * 4);
             build(1, 0, length - 1, A);
         }
 
         // get on a segment [l, r]
-        T get(int left, int right) {
-            return get(1, 0, length - 1, left, right);
+        T get(int l, int r) {
+            return get(1, 0, length - 1, l, r);
         }
 
         // обновление на отрезке l...r значением value
-        void update(int left, int right, const T& value) {
-            update(left, right, value, 1, 0, length - 1);
+        void update(int l, int r, T val) {
+            update(1, 0, length - 1, l, r, val);
         }
     };
 
@@ -1172,18 +1246,16 @@ temp->Next[str[k] - 'a']
 
         struct node {
             T value;
-            pnode left, right;
-            int size;
+            pnode left = 0, right = 0;
+            int size = 0;
             long long prior;
 
             node() {
                 left = right = 0;
             }
-            node(const T& new_value, const pnode& new_left, const pnode& new_right, int new_size) {
-                value = new_value;
-                left = new_left;
-                right = new_right;
-                size = new_size;
+            node(const T& value) {
+                this->value = value;
+
                 static std::mt19937_64 random(42);
                 prior = random();
             }
@@ -1357,7 +1429,7 @@ temp->Next[str[k] - 'a']
         void insert(const T& value, int index) {
             pnode left, right;
             split(root, left, right, index);
-            merge(left, left, new node(value, 0, 0, 0));
+            merge(left, left, new node(value));
             merge(root, left, right);
         }
 
@@ -1366,7 +1438,8 @@ temp->Next[str[k] - 'a']
             pnode left, right, mid;
             split(root, left, right, index);
             split(right, mid, right, 1);
-            return merge(root, left, right);
+            delete mid;
+            merge(root, left, right);
         }
 
 
@@ -2046,8 +2119,8 @@ namespace alg {
     namespace gph {
 
         class lca {
-            typedef vector<vector<s64>> graph;
-            vector<s64> H, dfsList, first, tree;
+            typedef std::vector<std::vector<s64>> graph;
+            std::vector<s64> H, dfsList, first, tree;
 
             // dfs для инициализации LCA
             void dfs(s64 v, s64 h, s64 prev, const graph& G) {
@@ -2123,7 +2196,7 @@ namespace alg {
                 s64 left = first[a];
                 s64 right = first[b];
                 if (left > right) {
-                    swap(left, right);
+                    std::swap(left, right);
                 }
                 return treeMin(1, 0, dfsList.size() - 1, left, right);
             }
@@ -4297,15 +4370,13 @@ using namespace var;
 int main() {
     ifstream cin("input.txt");
 
-    u128 n(107, 298593), div(12, 0);
-
-    cout << n % div << "\n";
-    cout << n - (n / div) * div;
+    dst::container<vector<int>> A;
+    for (int i = 0; i < 1e6; i++) {
+        A.insert({}, 0);
+    }
+    while (!A.empty()) {
+        A.erase(0);
+    }
 
     return 0;
 }
-
-/*
-* 5508068653201156145676395
-* 5508013312968935017021571
-*/
