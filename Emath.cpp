@@ -94,7 +94,7 @@ namespace utl {
     }
 
     // округление до степени 2
-    size_t roundTwo(size_t v) {
+    u64 roundTwo(u64 v) {
         v--;
 
         v |= v >> 1;
@@ -109,7 +109,7 @@ namespace utl {
 }
 using namespace utl;
 
-// Data Structures: trie, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap
+// Data Structures: trie, edeque, segTree, hashTable, container, dsu, fenwick, lwf, PairingHeap, matrix, sparse_table
 namespace dst {
 
     // шаблон
@@ -809,55 +809,102 @@ temp->Next[str[k] - 'a']
         }
     };
 
+    class sparse_table {
+
+        vector<u32> logs;
+
+        vector<vector<int>> table;
+
+        void computeLogs(s64 n) {
+            logs.resize(n + 1);
+            logs[1] = 0;
+            for (s64 i = 2; i <= n; i++) {
+                logs[i] = logs[i / 2] + 1;
+            }
+        }
+
+        void buildSparseTable(s64 n, vector<s64>& A) {
+            for (u32 i = 0; i <= logs[n]; i++) {
+                u32 curLen = 1 << i; // 2^i
+                for (u32 j = 0; j + curLen <= n; j++) {
+                    if (curLen == 1) {
+                        table[i][j] = A[j];
+                    }
+                    else {
+                        table[i][j] = max(table[i - 1][j], table[i - 1][j + (curLen / 2)]);
+                    }
+                }
+            }
+        }
+
+    public:
+
+        sparse_table(vector<s64>& A) {
+            computeLogs(A.size());
+            table.resize(logs[A.size()] + 1, vector<int>(A.size() + 1));
+            buildSparseTable(A.size(), A);
+        }
+
+        s64 get(u32 l, u32 r) {
+            u32 p = logs[r - l + 1];
+            u32 pLen = 1 << p; // 2^p
+            return max(table[p][l], table[p][r - pLen + 1]);
+        }
+    };
+
     // Дерево отрезков
     // взятия на отрезке и обновление элемента
     // calc - функция подсчета
     template<typename T, T(*calc)(T, T)>
     class segTree {
-        std::vector<T> tree;
-        int length;
+        std::vector<T> tree; // дерево
+        int length; // длина массива(не дерева)
 
+        // построение
         void build(int v, int tl, int tr, std::vector<T>& A) {
-            if (tl == tr) {
-                tree[v] = A[tl];
+            if (tl == tr) { // если лист
+                tree[v] = A[tl]; // то все просто
             }
             else {
-                int tm = (tl + tr) / 2;
-                build(v * 2, tl, tm, A);
-                build(v * 2 + 1, tm + 1, tr, A);
-                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]);
+                int tm = (tl + tr) / 2; // взяли середину
+                build(v * 2, tl, tm, A); // построили в левом узле
+                build(v * 2 + 1, tm + 1, tr, A); // построили в правом узле
+                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]); // собрали ответ
             }
         }
 
+        // взятие
         T get(int v, int tl, int tr, int l, int r) {
-            if (tl == l && tr == r) {
+            if (tl == l && tr == r) { // отрезки равные
                 return tree[v];
             }
             else {
                 int tm = (tl + tr) / 2;
-                if (r <= tm) {
+                if (r <= tm) { // если отрезок поиска находится в левом узле
                     return get(v * 2, tl, tm, l, r);
                 }
-                else if (l > tm) {
+                else if (l > tm) { // если отрезок поиска находится в правом узле
                     return get(v * 2 + 1, tm + 1, tr, l, r);
                 }
+                // посчитаем ответ в левом и правом поддереве с разрезанием отрезка поиска
                 return calc(get(2 * v, tl, tm, l, tm), get(2 * v + 1, tm + 1, tr, tm + 1, r));
             }
         }
 
+        // обновление листа
         void update(int v, int tl, int tr, int pos, T val) {
-            if (tl == tr) {
+            if (tl == tr) { // если лист
                 tree[v] = val;
             }
             else {
                 int tm = (tl + tr) / 2;
-                if (pos <= tm) {
+                if (pos <= tm) { // если слева
                     update(v * 2, tl, tm, pos, val);
                 }
-                else {
+                else { // иначе справа
                     update(v * 2 + 1, tm + 1, tr, pos, val);
                 }
-                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]);
+                tree[v] = calc(tree[v * 2], tree[v * 2 + 1]); // обновляем для этого узла
             }
         }
 
@@ -891,6 +938,7 @@ temp->Next[str[k] - 'a']
     class segTreeM {
         struct node {
             T value, add;
+            bool needPropagate = false;
             node() {
                 add = value = T();
             }
@@ -917,22 +965,25 @@ temp->Next[str[k] - 'a']
 
         // обновление на отрезке l...r value
         void update(int v, int tl, int tr, int l, int r, T& val) {
+            propagate(v, tl, tr);
             if (tr < l || r < tl) {
                 // отрезок не подходит
             }
             else if (l <= tl && tr <= r) {
                 tree[v] = node(modify(val, tree[v].value), modify(val, tree[v].add));
+                tree[v].needPropagate = true;
             }
             else {
                 int tm = (tl + tr) / 2;
                 update(v * 2, tl, tm, l, r, val);
                 update(v * 2 + 1, tm + 1, tr, l, r, val);
-                tree[v].value = modify(calc(tree[v * 2].value, tree[v * 2 + 1].value), tree[v].add);
+                tree[v].value = calc(tree[v * 2].value, tree[v * 2 + 1].value);
             }
         }
 
         // возвращает значение на отрезке
         T get(int v, int tl, int tr, int l, int r) {
+            propagate(v, tl, tr);
             if (l == tl && r == tr) {
                 return tree[v].value;
             }
@@ -944,10 +995,30 @@ temp->Next[str[k] - 'a']
                 else if (l > tm) {
                     return get(v * 2 + 1, tm + 1, tr, l, r);
                 }
-                T cntL = get(2 * v, tl, tm, l, tm);
-                T cntR = get(2 * v + 1, tm + 1, tr, tm + 1, r);
+                else {
+                    T cntL = get(2 * v, tl, tm, l, tm);
+                    T cntR = get(2 * v + 1, tm + 1, tr, tm + 1, r);
 
-                return modify(calc(cntL, cntR), tree[v].add);
+                    return calc(cntL, cntR);
+                }
+            }
+        }
+
+        // проталкивание операций в сыновей
+        void propagate(int v, int tl, int tr) {
+            if (tl != tr && tree[v].needPropagate) { // если нуждаемся в проталкивании
+                int tm = (tl + tr) / 2;
+
+                tree[v * 2].add = modify(tree[v].add, tree[v * 2].add);
+                tree[v * 2].value = modify(tree[v].add, tree[v * 2].value);
+
+                tree[v * 2 + 1].add = modify(tree[v].add, tree[v * 2 + 1].add);
+                tree[v * 2 + 1].value = modify(tree[v].add, tree[v * 2 + 1].value);
+
+                tree[v].needPropagate = false;
+                tree[v].add = T();
+
+                tree[v * 2].needPropagate = tree[v * 2 + 1].needPropagate = true;
             }
         }
 
@@ -958,6 +1029,10 @@ temp->Next[str[k] - 'a']
             length = A.size();
             tree.resize(length * 4);
             build(1, 0, length - 1, A);
+        }
+        segTreeM(int size) {
+            length = size;
+            tree.resize(length * 4);
         }
 
         // get on a segment [l, r]
@@ -2117,6 +2192,53 @@ namespace alg {
 
     // Graphs: dijkstra, mst, graphSets, graphCycles
     namespace gph {
+
+        // find bridges
+        namespace bridge {
+
+            vector<vector<int>> G;
+            vector<bool> Vis;
+            vector<int> tin, fup;
+            int timer;
+
+
+            map<pair<s64, s64>, s64> Map;
+            vector<s64> Ans;
+
+            void dfs(int v, int p = -1) {
+                Vis[v] = true;
+                tin[v] = fup[v] = timer++;
+
+                for (auto to : G[v]) {
+                    if (to != p) { // не идем в родителя
+
+                        if (Vis[to]) {
+                            fup[v] = min(fup[v], tin[to]);
+                        }
+                        else {
+                            dfs(to, v);
+                            fup[v] = min(fup[v], fup[to]);
+                            if (fup[to] > tin[v])
+                                Ans.push_back(Map[make_pair(v, to)]);
+                        }
+                    }
+                }
+            }
+
+            void find_bridges() {
+                timer = 0;
+
+                Vis.resize(G.size(), false);
+                tin.resize(G.size());
+                fup.resize(G.size());
+
+                for (int i = 0; i < G.size(); i++) {
+                    if (!Vis[i]) {
+                        dfs(i);
+                    }
+                }
+            }
+        }
 
         class lca {
             typedef std::vector<std::vector<s64>> graph;
@@ -3564,6 +3686,7 @@ namespace var {
 
         friend std::ostream& operator << (std::ostream& output, const u128& value);
     };
+
     // 0.4ms
     std::istream& operator >> (std::istream& input, u128& value) {
         emt::elong Long;
@@ -3811,18 +3934,9 @@ void operator delete[](void* ptr) {
 using namespace std;
 using namespace var;
 
-
-
 int main() {
     ifstream cin("input.txt");
 
-    dst::container<vector<int>> A;
-    for (int i = 0; i < 1e6; i++) {
-        A.insert({}, 0);
-    }
-    while (!A.empty()) {
-        A.erase(0);
-    }
 
     return 0;
 }
