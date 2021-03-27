@@ -190,8 +190,12 @@ class elong {
         }
 
         basicLong operator * (const basicLong& mult) const {
-            int k = std::max(this->digits.size(), mult.digits.size());
-            if (k <= 128) {
+            s64 k = std::max(this->digits.size(), mult.digits.size());
+
+            s64 naive_acc = this->digits.size() * mult.digits.size();
+            s64 karatsuba_acc = k * sqrt(k) * 2;
+
+            if (naive_acc <= karatsuba_acc) {
                 return naiveMul(*this, mult);
             }
             else {
@@ -219,9 +223,10 @@ class elong {
                 value.remove_leading_zeros();
                 value.digits.push_front(digits[i]);
 
-                long long l = 0, r = long_base;
+                // bin search
+                u64 l = 0, r = long_base;
                 while (l < r - 1) {
-                    long long m = (l + r) >> 1;
+                    u64 m = (l + r) >> 1;
 
                     temp.digits.push_back(m);
                     t = divider * temp;

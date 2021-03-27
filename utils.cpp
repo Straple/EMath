@@ -27,13 +27,13 @@ u64 roundTwo(u64 v) {
     return v;
 }
 
-template<typename T>
-T epow(const T& a, const T& n) {
+template<typename T1, typename T2>
+T1 epow(const T1& a, const T2& n) {
     if (n == 0) {
         return 1;
     }
     else {
-        T z = epow(a, n / 2);
+        T1 z = epow(a, n / 2);
         z *= z;
 
         if (n % 2 == 1) {
@@ -43,13 +43,13 @@ T epow(const T& a, const T& n) {
     }
 }
 
-template<typename T>
-T epow(const T& a, const T& n, const T& mod) {
+template<typename T1, typename T2>
+T1 epow(const T1& a, const T2& n, const T1& mod) {
     if (n == 0) {
         return 1;
     }
     else {
-        T z = epow(a, n / 2);
+        T1 z = epow(a, n / 2);
         z = (z * z) % mod;
 
         if (n % 2 == 1) {
