@@ -6,7 +6,7 @@
 #include <iomanip>
 
 
-#include "utils.cpp"
+#include "utils.h"
 #include "edeque.cpp"
 
 const s64 long_length = 18,
